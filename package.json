@@ -1,0 +1,27 @@
+{
+  "name": "react-autofocus",
+  "version": "0.0.1",
+  "description": "Provide contextual information for autofocus.",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint src --ext .ts,.tsx",
+    "check": "tsc -p . --noEmit",
+    "test": "NODE_ENV=test jest"
+  },
+  "peerDependencies": {
+    "react": "^18.0"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "react-timer": "workspace:^",
+    "react-util": "workspace:^",
+    "ytil": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0",
+    "typescript": "5.4.3"
+  }
+}
