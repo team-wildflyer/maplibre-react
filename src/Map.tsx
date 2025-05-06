@@ -1,10 +1,10 @@
-import { FitBoundsOptions, MapOptions, MapStyle } from '@maptiler/sdk'
-import React, { Ref, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
+import { FitBoundsOptions, MapOptions } from '@maptiler/sdk'
+import { useMap } from 'maplibre-react'
+import React, { Ref, useEffect, useImperativeHandle, useRef } from 'react'
 import { useSize } from 'react-measure'
 import { forwardRef } from 'react-util'
-import { useDisposable } from 'react-util/hooks'
 import './Map.css'
-import { MapModel } from './MapModel'
+import { defaultStyle } from './MapModel'
 import { Viewport } from './Viewport'
 import { FitBoundsOptionsCallback, MapStyleSpecification } from './types'
 
@@ -12,7 +12,7 @@ export interface MapProps {
   /**
    * The map style. The default is `MapStyle.DATAVIZ.DEFAULT`.
    */
-  style?: MapStyleSpecification
+  style: MapStyleSpecification
   
   /**
    * The default viewport of the map. This is used to set the initial bounds of the map, and is also used when
@@ -33,6 +33,8 @@ export interface MapProps {
    */
   fitBoundsOptions?: FitBoundsOptionsCallback
 
+  labelsVisible?: boolean
+
   /**
    * Any options passed to the map. Note that this is not reactive. These options are set once.
    */
@@ -48,27 +50,22 @@ export interface MapHandle {
 export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
 
   const {
-    style = MapStyle.DATAVIZ.DEFAULT,
+    style = defaultStyle(),
     defaultViewport,
     fitBoundsOptions,
+    labelsVisible,
     children,
     options = {},
   } = props
 
-  const map = useDisposable(useMemo(
-    () => new MapModel(),
-    []
-  ))
-
-  useEffect(() => {
-    return () => { map.deinit() }
-  }, [map])
+  const map = useMap()
 
   const containerRef = useRef<HTMLDivElement>(null)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
 
   const styleRef = useRef(style)
   const defaultViewportRef = useRef(defaultViewport)
+  const labelsVisibleRef = useRef(labelsVisible)
 
   // #region Initialization
 
@@ -82,6 +79,9 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
     map.setStyle(styleRef.current)
     if (defaultViewportRef.current != null) {
       map.setDefaultViewport(defaultViewportRef.current)
+    }
+    if (labelsVisibleRef.current != null) {
+      map.setLabelsVisible(labelsVisibleRef.current)
     }
 
     map.connect(wrapper, options)
@@ -111,6 +111,13 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
     if (fitBoundsOptions == null) { return }
     map.setFitBoundsOptionsCallback(fitBoundsOptions)
   }, [fitBoundsOptions, map])
+
+  useEffect(() => {
+    if (labelsVisible == null) { return }
+    if (labelsVisible === labelsVisibleRef.current) { return }
+    labelsVisibleRef.current = labelsVisible
+    map.setLabelsVisible(labelsVisibleRef.current)
+  }, [labelsVisible, map])
 
   // #endregion
 

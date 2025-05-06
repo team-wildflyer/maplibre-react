@@ -1,9 +1,7 @@
 import { createContext, useContext } from 'react'
-import { Layer } from '~/stores/map'
 
 export interface TileLayerContext {
-  layer:   Layer
-  visible: boolean
+  name: string
 }
 
 export const TileLayerContext = createContext<TileLayerContext | null>(null)

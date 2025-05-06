@@ -1,7 +1,8 @@
 import { CustomLayerInterface } from '@maptiler/sdk'
 import { useEffect, useRef } from 'react'
 import { memo } from 'react-util'
-import { useMap } from '~/ui/hooks'
+import { useMap } from '../MapContext'
+import { useLayerGroup } from './LayerGroupContext'
 import { useTileLayer } from './TileLayerContext'
 
 export interface TileLayerCustomProps {
@@ -13,15 +14,16 @@ export const TileLayerCustom = memo('TileLayerCustom', (props: TileLayerCustomPr
   const {create} = props
   const createRef = useRef(create)
 
-  const {layer, visible} = useTileLayer()
+  const layer = useTileLayer()
+  const group = useLayerGroup()
   const map = useMap()
 
   useEffect(() => {
-    if (!visible) { return }
-
     const backingLayer = createRef.current(layer.name)
-    return map.ensureBackingLayer(layer.name, backingLayer)
-  }, [create, layer.name, map, visible])
+    return map.ensureBackingLayer(layer.name, backingLayer, {
+      group: group?.name,
+    })
+  }, [create, group, layer, map])
 
   return null
 

@@ -9,7 +9,10 @@ import {
 import { BBox, Geometry } from 'geojson-classes'
 import { DateTime } from 'luxon'
 
-export type MapStyleSpecification = ReferenceMapStyle | MapStyleVariant | StyleSpecification | string
+export interface MapStyleSpecification {
+  style:               ReferenceMapStyle | MapStyleVariant | StyleSpecification | string
+  backgroundTopLayer?: string
+}
 
 export type BackingLayer = CustomLayerInterface | LayerSpecification
 

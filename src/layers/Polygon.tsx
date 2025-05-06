@@ -2,7 +2,7 @@ import { PaletteRange, useTheme } from '@mui/joy'
 import { Geometry } from 'geojson-classes'
 import { useEffect, useMemo } from 'react'
 import { memo } from 'react-util'
-import { useMap } from './MapContext'
+import { useMap } from '../MapContext'
 
 interface PolygonProps {
   id:       string

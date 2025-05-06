@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { memo } from 'react-util'
 import { useWithStableDeps } from 'react-util/hooks'
 import { CamelizeKeys, sparse } from 'ytil'
-import { useMap } from '~/ui/hooks'
+import { useMap } from '../MapContext'
 import { useTileLayer } from './TileLayerContext'
 
 export type TileLayerSourceProps = CamelizeKeys<Omit<VectorSourceSpecification | RasterSourceSpecification, 'tiles'>> & {
@@ -13,7 +13,7 @@ export type TileLayerSourceProps = CamelizeKeys<Omit<VectorSourceSpecification |
 
 export const TileLayerSource = memo('TileLayerSource', (props: TileLayerSourceProps) => {
 
-  const {layer} = useTileLayer()
+  const layer = useTileLayer()
 
   const {
     name,

@@ -1,4 +1,6 @@
 import cn from 'classnames'
+import { Point } from 'geojson'
+import { Geometry } from 'geojson-classes'
 import React, { ReactNode, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { memo } from 'react-util'
@@ -7,7 +9,7 @@ import { useMap } from './MapContext'
 
 export interface MarkerProps {
   id:        string
-  location:  GeoJSON.Point
+  location:  Geometry<Point>
   children?: ReactNode
   visible?:  boolean
 }

@@ -4,7 +4,8 @@ import { useEffect, useMemo } from 'react'
 import { memo } from 'react-util'
 import { useWithStableDeps } from 'react-util/hooks'
 import { CamelizeKeys, sparse } from 'ytil'
-import { useMap } from '~/ui/hooks'
+import { useMap } from '../MapContext'
+import { useLayerGroup } from './LayerGroupContext'
 import { useTileLayer } from './TileLayerContext'
 
 type TileLayerRasterBaseProps = CamelizeKeys<Omit<RasterLayerSpecification, 'id' | 'type' | 'source' | 'source-layer'>>
@@ -14,17 +15,15 @@ export interface TileLayerRasterProps extends TileLayerRasterBaseProps {
 
   source?:      string
   sourceLayer?: string
-
-  group?: string
 }
 
 export const TileLayerRaster = memo('TileLayerRaster', (props: TileLayerRasterProps) => {
 
-  const {group, ...rest} = props
-  const {layer, visible} = useTileLayer()
+  const layer = useTileLayer()
+  const group = useLayerGroup()
 
   const map = useMap()
-  const spec = useWithStableDeps(rest, () => [])
+  const spec = useWithStableDeps(props, () => [])
 
   const backingLayer = useMemo(
     () => buildRasterLayerSpec(layer.name, spec),
@@ -32,10 +31,10 @@ export const TileLayerRaster = memo('TileLayerRaster', (props: TileLayerRasterPr
   )
 
   useEffect(() => {
-    if (!visible) { return }
-
-    return map.ensureBackingLayer(layer.name, backingLayer, {group})
-  }, [backingLayer, group, layer.name, map, spec, visible])
+    return map.ensureBackingLayer(layer.name, backingLayer, {
+      group: group?.name,
+    })
+  }, [backingLayer, group, layer.name, map, spec])
 
   return null
 

@@ -1,8 +1,8 @@
-import { useContext, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { memo } from 'react-util'
 import { useContinuousRef } from 'react-util/hooks'
-import { useMap } from '~/ui/hooks'
-import { TileLayerContext } from './TileLayerContext'
+import { useMap } from '../MapContext'
+import { useTileLayer } from './TileLayerContext'
 
 export type TileLayerFeatureStateProps = TileLayerFeatureStateToggleProps | TileLayerFeatureStateSingleProps
 
@@ -25,10 +25,10 @@ interface TileLayerFeatureStateSingleProps extends TileLayerFeatureStateCommonPr
 
 export const TileLayerFeatureState = memo('TileLayerFeatureState', (props: TileLayerFeatureStateProps) => {
 
-  const tileLayer = useContext(TileLayerContext)
+  const layer = useTileLayer()
 
   const {
-    source = tileLayer?.layer.name,
+    source = layer.name,
     sourceLayer,
     stateEnter,
     stateExit,

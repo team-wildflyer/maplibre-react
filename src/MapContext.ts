@@ -1,11 +1,7 @@
-import { createContext, ReactNode, useContext } from 'react'
+import { createContext, useContext } from 'react'
 import { MapModel } from './MapModel'
 
 export const MapContext = createContext<MapModel | null>(null)
-
-export interface MapContainerProps {
-  children?: ReactNode
-}
 
 export function useMap() {
   const context = useContext(MapContext)

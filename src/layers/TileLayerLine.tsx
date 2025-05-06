@@ -9,14 +9,14 @@ import { useEffect, useMemo, useRef } from 'react'
 import { memo } from 'react-util'
 import { usePrevious } from 'react-util/hooks'
 import { omitUndefined } from 'ytil'
-import { useMap } from '~/ui/hooks'
+import { useMap } from '../MapContext'
+import { useLayerGroup } from './LayerGroupContext'
 import { useTileLayer } from './TileLayerContext'
 
 export interface TileLayerLineProps extends TileLayerLinePaintSpecification {
   source?:      string
   sourceLayer?: string
 
-  group?:   string
   onClick?: (event: MapMouseEvent, feature?: MapGeoJSONFeature) => void
 }
 
@@ -29,7 +29,6 @@ export interface TileLayerLinePaintSpecification {
 export const TileLayerLine = memo('TileLayerLine', (props: TileLayerLineProps) => {
 
   const {
-    group,
     source,
     sourceLayer,
     onClick,
@@ -37,7 +36,9 @@ export const TileLayerLine = memo('TileLayerLine', (props: TileLayerLineProps) =
     lineOpacity, 
     lineWidth,
   } = props
-  const {layer, visible} = useTileLayer()
+
+  const layer = useTileLayer()
+  const group = useLayerGroup()
 
   const {ensureBackingLayer, updateBackingLayerPaint, addTileBackingLayerClickListener} = useMap()
   const paint = useMemo((): LineLayerSpecification['paint'] => omitUndefined({
@@ -52,13 +53,10 @@ export const TileLayerLine = memo('TileLayerLine', (props: TileLayerLineProps) =
 
   useEffect(() => {
     if (onClick == null) { return }
-    if (!visible) { return }
-
     return addTileBackingLayerClickListener(id, onClick)
-  }, [addTileBackingLayerClickListener, id, onClick, visible])
+  }, [addTileBackingLayerClickListener, id, onClick])
 
   useEffect(() => {
-    if (!visible) { return }
     return ensureBackingLayer(layer.name, {
       id:             id,
       type:           'line',
@@ -66,9 +64,9 @@ export const TileLayerLine = memo('TileLayerLine', (props: TileLayerLineProps) =
       'source-layer': sourceLayer ?? layer.name,
       paint:          initialPaintRef.current, 
     }, {
-      group,
+      group: group?.name,
     })
-  }, [ensureBackingLayer, group, id, layer.name, source, sourceLayer, visible])
+  }, [ensureBackingLayer, group, id, layer.name, source, sourceLayer])
 
   useEffect(() => {
     if (prevPaint === undefined) { return }

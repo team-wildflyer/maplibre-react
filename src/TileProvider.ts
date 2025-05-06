@@ -1,6 +1,6 @@
 import { addProtocol, GetResourceResponse } from '@maptiler/sdk'
 
-addProtocol('wf', async (action, abort): Promise<GetResourceResponse<any>> => {
+addProtocol('wf', async (): Promise<GetResourceResponse<any>> => {
   const canvas = document.createElement('canvas')
   const context = canvas.getContext('2d')
   if (context == null) {

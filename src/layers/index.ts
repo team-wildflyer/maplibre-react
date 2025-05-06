@@ -1,4 +1,6 @@
-export * from './LayerCategory'
+export * from './LayerGroup'
+export * from './LayerGroupContext'
+export * from './Polygon'
 export * from './TileLayer'
 export * from './TileLayerContext'
 export * from './TileLayerCustom'

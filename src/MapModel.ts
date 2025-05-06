@@ -21,7 +21,7 @@ import {
 } from '@maptiler/sdk'
 import { TileLayer } from '@maptiler/weather'
 import { Point } from 'geojson'
-import { BBox } from 'geojson-classes'
+import { BBox, Geometry } from 'geojson-classes'
 import { isFunction, isPlainObject } from 'lodash'
 import Timer from 'react-timer'
 import { Disposable } from 'react-util'
@@ -95,7 +95,7 @@ export class MapModel extends Disposable {
     this._element = element
     this._map = new maptiler_Map({
       container: element,
-      style:     this.style,
+      style:     this.style.style,
       bounds:    this.viewport.bounds,
 
       ...options,
@@ -179,7 +179,7 @@ export class MapModel extends Disposable {
     this.setDefaultViewport(Viewport.world())
   }
 
-  public setDefaultViewport(viewport: Viewport | ViewportLike, flyTo: boolean | FitBBoxOptions = false) {
+  public setDefaultViewport(viewport: Viewport | ViewportLike) {
     this._viewport = Viewport.from(viewport)
 
     if (!this.userMoved) {
@@ -248,7 +248,7 @@ export class MapModel extends Disposable {
 
   // #region Style
 
-  private _style: MapStyleSpecification = MapStyle.DATAVIZ.DEFAULT
+  private _style: MapStyleSpecification = defaultStyle()
   public get style() { return this._style }
 
   public setStyle(style: MapStyleSpecification) {
@@ -267,7 +267,7 @@ export class MapModel extends Disposable {
       this.syncLabelVisibility()
     })
 
-    this._map.setStyle(this.style)
+    this._map.setStyle(this.style.style)
   }
 
   // #endregion
@@ -740,21 +740,8 @@ export class MapModel extends Disposable {
   private _labelsVisible: boolean = true
   public get labelsVisible() { return this._labelsVisible }
 
-  public toggleLabels() {
-    if (this.labelsVisible) {
-      this.hideLabels()
-    } else {
-      this.showLabels()
-    }
-  }
-
-  public showLabels() {
-    this._labelsVisible = true
-    this.syncLabelVisibility()
-  }
-
-  public hideLabels() {
-    this._labelsVisible = false
+  public setLabelsVisible(visible: boolean) {
+    this._labelsVisible = visible
     this.syncLabelVisibility()
   }
 
@@ -838,10 +825,10 @@ export class MapModel extends Disposable {
 
   private markerTimer = new Timer()
 
-  private markers = new Map<string, [Point, HTMLElement, MarkerOptions, () => any]>()
+  private markers = new Map<string, [Geometry<Point>, HTMLElement, MarkerOptions, () => any]>()
   private currentMarkers = new Map<string, Marker>()
 
-  public addMarker(id: string, location: Point, element: HTMLElement | null, options: MarkerOptions = {}, onAdded?: () => any): () => void {
+  public addMarker(id: string, location: Geometry<Point>, element: HTMLElement | null, options: MarkerOptions = {}, onAdded?: () => any): () => void {
     if (element == null) {
       this.markers.delete(id)
     } else {
@@ -1030,4 +1017,11 @@ function lngLatBoundsToBBox(bounds: ReturnType<maptiler_Map['getBounds']>): BBox
     bounds.getEast(),
     bounds.getNorth(),
   ])
+}
+
+export function defaultStyle(): MapStyleSpecification {
+  return {
+    style:              MapStyle.DATAVIZ.DEFAULT,
+    backgroundTopLayer: 'Country border',
+  }
 }

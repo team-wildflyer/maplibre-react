@@ -1,8 +1,8 @@
 import { omit } from 'lodash'
 import { ReactNode, useEffect } from 'react'
 import { memo } from 'react-util'
-import { useMap } from './MapContext'
-import { LayerGroupOrdering } from './types'
+import { useMap } from '../MapContext'
+import { LayerGroupOrdering } from '../types'
 
 export type LayerGroupProps = LayerGroupCommonProps & LayerGroupOrdering
 

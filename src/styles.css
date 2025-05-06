@@ -2,6 +2,10 @@
   position: absolute;
   inset:    0;
   overflow: hidden;
+
+  --maplibre-react--ControlPadding: 10px;
+  --maplibre-react--ControlGap: 10px;
+  --maplibre-react--ControlSize: 33px;
 }
 
 .maplibre-react--MapWrapper {
@@ -21,4 +25,20 @@
 .maplibre-react--Marker.hidden {
   display:  none;
   overflow: hidden;
+}
+
+.maplibre-react--ControlZone {
+  display: flex;
+  flex-direction: column;
+
+  gap:     var(--maplibre-react--ControlPadding);
+  padding: var(--maplibre-react--ControlGap);
+}
+
+.maplibre-react--ControlZone.top-left, .maplibre-react--ControlZone.bottom-left {
+  align-items: flex-start;
+}
+
+.maplibre-react--ControlZone.top-right, .maplibre-react--ControlZone.bottom-right {
+  align-items: flex-end;
 }
