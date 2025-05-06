@@ -2,58 +2,85 @@ import { LngLatBounds } from '@maptiler/sdk'
 import { Point } from 'geojson'
 import { BBox, Coordinate, Geometry } from 'geojson-classes'
 import { isPlainObject } from 'lodash'
+import { Size } from 'ytil'
 
 export class Viewport {
 
-  constructor(
-    public bbox: BBox
+  private constructor(
+    public params: ViewportParams
   ) {}
 
   public static world(): Viewport {
-    return new Viewport(new BBox([
-      -83.0348038982939,
-      -49.59094837608512,
-      84.89115767936102,
-      54.4105319327216,
-    ]))
+    return new Viewport({
+      bbox: new BBox([
+        -83.0348038982939,
+        -49.59094837608512,
+        84.89115767936102,
+        54.4105319327216,
+      ]),
+    })
   }
 
   public static from(input: ViewportLike): Viewport {
     if (input instanceof Viewport) {
       return input
     } else if (isPlainObject(input) && 'center' in input && 'zoom' in input) {
-      return Viewport.fromCenterAndZoom(input.center, input.zoom)
+      return new Viewport({
+        center: Geometry.point(input.center),
+        zoom:   input.zoom,
+      })
     } else {
-      return Viewport.fromBBox(input as BBox | GeoJSON.BBox)
+      return new Viewport({
+        bbox: BBox.from(input as BBox | GeoJSON.BBox),
+      })
     }
   } 
 
   public static fromBBox(bbox: BBox | GeoJSON.BBox): Viewport {
-    return new Viewport(BBox.from(bbox))
+    return new Viewport({
+      bbox: BBox.from(bbox),
+    })
   }
 
-  public static fromCenterAndZoom(center: Geometry<Point> | Point | Coordinate, zoom: number): Viewport {
-    const centerCoords = Geometry.point(center).coordinates
-    const scale = Math.pow(2, zoom)
-    const halfWidth = 180 / scale
-    const halfHeight = 85.0511287798066 / scale
+  public bbox(mapSize: Size): BBox {
+    if ('bbox' in this.params) {
+      return this.params.bbox
+    }
 
-    return new Viewport(new BBox([
-      centerCoords[0] - halfWidth,
-      centerCoords[1] - halfHeight,
-      centerCoords[0] + halfWidth,
-      centerCoords[1] + halfHeight,
-    ]))
+    const zoom = this.params.zoom
+    const [lon, lat] = Geometry.point(this.params.center).coordinates
+
+    const lonMin = lon - (mapSize.width / 2) / Math.pow(2, zoom)
+    const latMin = lat - (mapSize.height / 2) / Math.pow(2, zoom)
+    const lonMax = lon + (mapSize.width / 2) / Math.pow(2, zoom)
+    const latMax = lat + (mapSize.height / 2) / Math.pow(2, zoom)
+
+    return new BBox([lonMin, latMin, lonMax, latMax])
   }
 
-  public get bounds() {
-    return new LngLatBounds(this.bbox.bbox)
+  public bounds(mapSize: Size) {
+    return new LngLatBounds(this.bbox(mapSize).bbox)
   }
 
   public equals(other: Viewport) {
-    return this.bbox.equals(other.bbox)
+    if ('bbox' in this.params) {
+      if (!('bbox' in other.params)) { return false }
+      return this.params.bbox.equals(other.params.bbox)
+    } else {
+      if (!('center' in other.params)) { return false }
+      if (this.params.zoom !== other.params.zoom) { return false }
+      if (!this.params.center.equals(other.params.center)) { return false }
+      return true
+    }
   }
 
+}
+
+type ViewportParams = {
+  bbox: BBox
+} | {
+  center: Geometry<Point>
+  zoom:   number
 }
 
 export type ViewportLike = BBox | GeoJSON.BBox | Viewport | CenterAndZoom

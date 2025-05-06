@@ -83,6 +83,13 @@ export class MapModel extends Disposable {
   private _map: maptiler_Map | null = null
   public get map() { return this._map }
 
+  public get size() {
+    return {
+      width:  this._element?.clientWidth ?? 0,
+      height: this._element?.clientHeight ?? 0,
+    }
+  }
+
   public init(
     element: HTMLElement,
     initialStyle: MapStyleSpecification,
@@ -103,7 +110,7 @@ export class MapModel extends Disposable {
     this._map = new maptiler_Map({
       container: element,
       style:     this._mapStyle,
-      bounds:    this.viewport.bounds,
+      bounds:    this.viewport.bounds(this.size),
 
       ...options,
     })
@@ -234,10 +241,13 @@ export class MapModel extends Disposable {
     if (map == null) { return }
 
     const currentBBox = lngLatBoundsToBBox(map.getBounds())
-    const options = this.getFitBoundsOptions(reason, currentBBox, this.viewport.bbox)
+    const nextBBox = this.viewport.bbox(this.size)
+    if (currentBBox.equals(nextBBox)) { return }
+
+    const options = this.getFitBoundsOptions(reason, currentBBox, nextBBox)
     if (options === false) { return }
 
-    this._map?.fitBounds(this.viewport.bounds, options === true ? {} : options)
+    this._map?.fitBounds(nextBBox.bbox, options === true ? {} : options)
     this.userMoved = false
   }
 
