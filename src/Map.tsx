@@ -3,9 +3,9 @@ import { useMap } from 'maplibre-react'
 import React, { Ref, useEffect, useImperativeHandle, useRef } from 'react'
 import { useSize } from 'react-measure'
 import { forwardRef } from 'react-util'
-import './Map.css'
 import { defaultStyle } from './MapModel'
 import { Viewport } from './Viewport'
+import './styles.css'
 import { FitBoundsOptionsCallback, MapStyleSpecification } from './types'
 
 export interface MapProps {
