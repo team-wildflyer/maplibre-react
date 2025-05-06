@@ -44,6 +44,12 @@ export class MapModel extends Disposable {
   constructor() {
     super()
     bindMethods(this)
+
+    this.disposer(() => {
+      this.layerTimer.clearAll()
+      this.markerTimer.clearAll()
+      this.polygonTimer.clearAll()
+    })
   }
 
   public readonly operationQueue = new OperationQueue(this)
@@ -77,14 +83,6 @@ export class MapModel extends Disposable {
   private _map: maptiler_Map | null = null
   public get map() { return this._map }
 
-  public deinit() {
-    this.disconnect()
-
-    this.layerTimer.clearAll()
-    this.markerTimer.clearAll()
-    this.polygonTimer.clearAll()
-  }
-
   public connect(element: HTMLElement, options: MapOptions = {}) {
     if (element === this._element && this._map != null) { return }
     if (this._map != null || this._element != null) {
@@ -111,7 +109,13 @@ export class MapModel extends Disposable {
     this._map.on('zoomstart', this.onZoomStart)
     this._map.on('resize', this.onResize)
 
-    return this.deinit.bind(this)
+    this.disposer(() => {
+      this.disconnect()
+    })
+
+    return () => {
+      this.disconnect()
+    }
   }
 
   public disconnect(element?: HTMLElement) {
@@ -253,6 +257,7 @@ export class MapModel extends Disposable {
   public setMapStyle(mapStyle: MapStyleSpecification) {
     if (mapStyle === this._mapStyle) { return }
     this._mapStyle = mapStyle
+
     this.syncMapStyle()
   }
 
