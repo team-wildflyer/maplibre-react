@@ -1,6 +1,7 @@
 import { omit } from 'lodash'
-import { ReactNode, useEffect } from 'react'
+import React, { ReactNode, useEffect } from 'react'
 import { memo } from 'react-util'
+import { useWithStableDeps } from 'react-util/hooks'
 import { useMap } from '../MapContext'
 import { LayerGroupOrdering } from '../types'
 
@@ -13,16 +14,19 @@ export interface LayerGroupCommonProps {
 
 export const LayerGroup = memo('LayerGroup', (props: LayerGroupProps) => {
 
-  const name = props.name
-  const positioning = omit(props, 'name') as LayerGroupOrdering
+  const {name, children} = props
+  
+  const positioning = useWithStableDeps(
+    omit(props, 'name') as LayerGroupOrdering,
+    ordering => ['above' in ordering ? `above-${ordering.above}` : `below-${ordering.below}`]
+  )
 
   const map = useMap()
-
   useEffect(
     () => map.registerLayerGroup(name, positioning),
     [map, name, positioning]
   )
 
-  return null
+  return <>{children}</>
 
 })

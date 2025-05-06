@@ -36,11 +36,13 @@ export class MapLayersOrdering {
   }
 
   public addLayer(layer: BackingLayer, options: AddLayerOptions = {}) {
+    
     const group = this.getGroup(options.group ?? '$unassigned')
     if (group == null) {
       throw new Error(`Layer group "${options.group}" not found`)
     }
 
+    group.layers = group.layers.filter(it => it.id !== layer.id)
     group.layers.push(layer)
 
     this.syncLayerGroup(group)
@@ -55,7 +57,7 @@ export class MapLayersOrdering {
       const index = group.layers.findIndex(it => it.id === layerID)
       if (index === -1) { continue }
 
-      group.layers.splice(index, 1)
+      group.layers = group.layers.filter(it => it.id !== layerID)
       break
     }
 

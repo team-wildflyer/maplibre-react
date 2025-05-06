@@ -50,6 +50,10 @@ export class Viewport {
     return new LngLatBounds(this.bbox.bbox)
   }
 
+  public equals(other: Viewport) {
+    return this.bbox.equals(other.bbox)
+  }
+
 }
 
 export type ViewportLike = BBox | GeoJSON.BBox | Viewport | CenterAndZoom

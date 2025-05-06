@@ -1,6 +1,7 @@
 import { FitBoundsOptions, MapOptions } from '@maptiler/sdk'
+import cn from 'classnames'
 import { useMap } from 'maplibre-react'
-import React, { Ref, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import React, { CSSProperties, Ref, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { useSize } from 'react-measure'
 import { forwardRef } from 'react-util'
 import { Viewport } from './Viewport'
@@ -38,7 +39,11 @@ export interface MapProps {
   /**
    * Any options passed to the map. Note that this is not reactive. These options are set once.
    */
-  options?:  Omit<MapOptions, 'container' | 'bounds' | 'style' | 'center' | 'zoom'>
+  options?: Omit<MapOptions, 'container' | 'bounds' | 'style' | 'center' | 'zoom'>
+
+  className?: string
+  style?:     CSSProperties
+
   children?: React.ReactNode
 }
 
@@ -54,8 +59,10 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
     defaultViewport,
     fitBoundsOptions,
     labelsVisible = true,
-    children,
     options = {},
+    className,
+    style,
+    children,
   } = props
 
   const map = useMap()
@@ -72,15 +79,13 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
   useEffect(() => {
     if (wrapper == null) { return }
 
-    // Set these immediately so the map won't flicker. They are updated in a separate effect below.
-    map.setMapStyle(mapStyleRef.current)
-    if (defaultViewportRef.current != null) {
-      map.setDefaultViewport(defaultViewportRef.current)
-    }
-    map.setLabelsVisible(labelsVisibleRef.current)
-
-    map.connect(wrapper, options)
-    return () => { map.disconnect() }
+    map.init(
+      wrapper,
+      mapStyleRef.current,
+      defaultViewportRef.current,
+      options
+    )
+    return () => { map.deinit() }
   }, [map, options, wrapper])
 
   // #endregion
@@ -130,7 +135,7 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
 
   function render() {
     return (
-      <div className='maplibre-react--Map' ref={containerRef}>
+      <div className={cn('maplibre-react--Map', className)} style={style} ref={containerRef}>
         {size.width > 0 && (
           <div
             className='maplibre-react--Map-Wrapper'

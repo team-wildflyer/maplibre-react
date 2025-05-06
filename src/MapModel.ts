@@ -83,16 +83,26 @@ export class MapModel extends Disposable {
   private _map: maptiler_Map | null = null
   public get map() { return this._map }
 
-  public connect(element: HTMLElement, options: MapOptions = {}) {
+  public init(
+    element: HTMLElement,
+    initialStyle: MapStyleSpecification,
+    initialViewport: ViewportLike | undefined,
+    options: MapOptions = {}
+  ) {
     if (element === this._element && this._map != null) { return }
     if (this._map != null || this._element != null) {
-      this.disconnect()
+      this.deinit()
+    }
+
+    this._mapStyle = initialStyle
+    if (initialViewport != null) {
+      this._viewport = Viewport.from(initialViewport)
     }
 
     this._element = element
     this._map = new maptiler_Map({
       container: element,
-      style:     this.mapStyle,
+      style:     this._mapStyle,
       bounds:    this.viewport.bounds,
 
       ...options,
@@ -110,15 +120,15 @@ export class MapModel extends Disposable {
     this._map.on('resize', this.onResize)
 
     this.disposer(() => {
-      this.disconnect()
+      this.deinit()
     })
 
     return () => {
-      this.disconnect()
+      this.deinit()
     }
   }
 
-  public disconnect(element?: HTMLElement) {
+  public deinit(element?: HTMLElement) {
     if (this._map == null) { return }
     if (element != null && this._element !== element) { return }
 
@@ -183,8 +193,10 @@ export class MapModel extends Disposable {
   }
 
   public setDefaultViewport(viewport: Viewport | ViewportLike) {
-    this._viewport = Viewport.from(viewport)
+    const nextViewport = Viewport.from(viewport)
+    if (this._viewport.equals(nextViewport)) { return }
 
+    this._viewport = nextViewport
     if (!this.userMoved) {
       this.fitToViewport(FitBoundsReason.DefaultViewportChanged)
     }
@@ -241,7 +253,7 @@ export class MapModel extends Disposable {
     
   private onResize = () => {
     if (this.userMoved) { return }
-    
+
     this.resizeTimer.debounce(() => {
       this.fitToViewport(FitBoundsReason.MapResized)
     }, 500)
@@ -251,6 +263,8 @@ export class MapModel extends Disposable {
 
   // #region Style
 
+  private styleTimer = new Timer()
+
   private _mapStyle: MapStyleSpecification = config.defaultStyle
   public get mapStyle() { return this._mapStyle }
 
@@ -258,12 +272,13 @@ export class MapModel extends Disposable {
     if (mapStyle === this._mapStyle) { return }
     this._mapStyle = mapStyle
 
-    this.syncMapStyle()
+    this.styleTimer.debounce(() => { this.syncMapStyle() }, config.updateDebounce)
   }
 
   @queueUntil(({model}) => model.loaded)
   private syncMapStyle() {
     if (this._map == null) { return }
+    if (this._map.getStyle() === this._mapStyle) { return }
 
     this._map.once('styledata', () => {
       this.syncBackingLayers()
@@ -446,7 +461,6 @@ export class MapModel extends Disposable {
       // 1. First ensure all sources are there.
       const currentSourceIDs = filterWithPrefix(objectKeys(style.sources) as string[])
       const currentLayerIDs = filterWithPrefix(this._map.style.getLayersOrder())
-
       const remainingSourceIDs = new Set(currentSourceIDs)
       const remainingLayerIDs = new Set(currentLayerIDs)
 
@@ -722,8 +736,12 @@ export class MapModel extends Disposable {
   private mapLayersOrdering = new MapLayersOrdering(
     () => this.mapStyle,
     () => this._map?.style.getLayersOrder() ?? [],
-    (layer, insertBefore) => { this._map?.style.addLayer(layer, insertBefore) },
-    id => { this._map?.removeLayer(id) }
+    (layer, insertBefore) => {
+      this._map?.style.addLayer(layer, insertBefore)
+    },
+    id => {
+      this._map?.removeLayer(id)
+    }
   )
 
   public registerLayerGroup(name: string, ordering: LayerGroupOrdering) {
