@@ -12,7 +12,6 @@ import {
   MapLibreEvent,
   MapMouseEvent,
   MapOptions as maptiler_MapOptions,
-  MapStyle,
   Marker,
   MarkerOptions,
   RasterSourceSpecification,
@@ -95,7 +94,7 @@ export class MapModel extends Disposable {
     this._element = element
     this._map = new maptiler_Map({
       container: element,
-      style:     this.style.style,
+      style:     this.mapStyle,
       bounds:    this.viewport.bounds,
 
       ...options,
@@ -158,7 +157,7 @@ export class MapModel extends Disposable {
     if (!this.idle) {
       this._initializationErrors.push(event.error)
     } else {
-      console.error(event.error)
+      config.logger.error(event.error)
     }
   }
 
@@ -248,17 +247,17 @@ export class MapModel extends Disposable {
 
   // #region Style
 
-  private _style: MapStyleSpecification = defaultStyle()
-  public get style() { return this._style }
+  private _mapStyle: MapStyleSpecification = config.defaultStyle
+  public get mapStyle() { return this._mapStyle }
 
-  public setStyle(style: MapStyleSpecification) {
-    if (style === this._style) { return }
-    this._style = style
-    this.syncStyle()
+  public setMapStyle(mapStyle: MapStyleSpecification) {
+    if (mapStyle === this._mapStyle) { return }
+    this._mapStyle = mapStyle
+    this.syncMapStyle()
   }
 
   @queueUntil(({model}) => model.loaded)
-  private syncStyle() {
+  private syncMapStyle() {
     if (this._map == null) { return }
 
     this._map.once('styledata', () => {
@@ -267,7 +266,7 @@ export class MapModel extends Disposable {
       this.syncLabelVisibility()
     })
 
-    this._map.setStyle(this.style.style)
+    this._map.setStyle(this.mapStyle)
   }
 
   // #endregion
@@ -433,7 +432,7 @@ export class MapModel extends Disposable {
     if (style == null) { return }
 
     try {
-      console.groupCollapsed("SYNC")
+      config.logger.groupCollapsed("SYNC")
 
       const filterWithPrefix = (ids: string[]) => {
         return ids.filter(it => it.startsWith(config.layerPrefix('tile')) || it.startsWith(config.layerPrefix('polygon')))
@@ -455,16 +454,16 @@ export class MapModel extends Disposable {
       this.removeRemainingLayers(remainingLayerIDs)
       this.removeRemainingSources(remainingSourceIDs)
       
-      console.groupEnd()
+      config.logger.groupEnd()
     } catch (error) {
-      console.groupEnd()
-      console.error(error)
+      config.logger.groupEnd()
+      config.logger.error(error)
     }
   }
 
   private ensureTileLayerSources(remainingSourceIDs: Set<string>) {
-    console.debug('TILE SOURCES')
-    console.debug('nextSourceIDs:', Array.from(this._tileLayerSources.keys()).join(', '))
+    config.logger.debug('TILE SOURCES')
+    config.logger.debug('nextSourceIDs:', Array.from(this._tileLayerSources.keys()).join(', '))
 
     for (const [id, [url, source]] of this._tileLayerSources) {
       const prefixedID = this.tileLayerSourceID(id)
@@ -473,15 +472,15 @@ export class MapModel extends Disposable {
       } else {
         const spec = {...source, tiles: [url]}
 
-        console.debug('  ADD', id, `(prefixed=${prefixedID}, url=${url})`)
+        config.logger.debug('  ADD', id, `(prefixed=${prefixedID}, url=${url})`)
         this._map?.addSource(prefixedID, spec)
       }
     }
   }
 
   private ensureTileLayerBackingLayers(remainingLayerIDs: Set<string>) {
-    console.debug('TILE LAYERS')
-    console.debug('nextLayerIDs:', Array.from(this._tileLayerBackingLayers.keys()).join(', '))
+    config.logger.debug('TILE LAYERS')
+    config.logger.debug('nextLayerIDs:', Array.from(this._tileLayerBackingLayers.keys()).join(', '))
 
     for (const [id, [parentName, layer, options]] of this._tileLayerBackingLayers) {
       const prefixedID = this.tileLayerBackingLayerID(id)
@@ -498,7 +497,7 @@ export class MapModel extends Disposable {
           layer.source = this.tileLayerSourceID(layer.source)
         }
 
-        console.debug('  ADD', id)
+        config.logger.debug('  ADD', id)
         this.mapLayersOrdering.addLayer(layer, options)
         this.currentBackingLayers.set(id, [parentName, layer])
 
@@ -508,8 +507,8 @@ export class MapModel extends Disposable {
   }
 
   private ensurePolygonSources(remainingSourceIDs: Set<string>) {
-    console.debug('POLYGON SOURCES')
-    console.debug('polygonIDs:', Array.from(this.polygons.keys()).join(', '))
+    config.logger.debug('POLYGON SOURCES')
+    config.logger.debug('polygonIDs:', Array.from(this.polygons.keys()).join(', '))
 
     for (const [id, [polygon]] of this.polygons) {
       const prefixedID = this.polygonSourceID(id)
@@ -519,15 +518,15 @@ export class MapModel extends Disposable {
       } else {
         const source = this.buildPolySource(polygon)
 
-        console.debug('  ADD', id, `(prefixed=${prefixedID})`)
+        config.logger.debug('  ADD', id, `(prefixed=${prefixedID})`)
         this._map?.addSource(prefixedID, source)
       }
     }
   }
 
   private ensurePolygonBackingLayers(remainingLayerIDs: Set<string>) {
-    console.debug('POLYGON LAYERS')
-    console.debug('polygonIDs:', Array.from(this.polygons.keys()).join(', '))
+    config.logger.debug('POLYGON LAYERS')
+    config.logger.debug('polygonIDs:', Array.from(this.polygons.keys()).join(', '))
 
     for (const [id, [polygon, options]] of this.polygons) {
       const fillLayer = this.buildPolyFillLayer(id, polygon)
@@ -543,10 +542,10 @@ export class MapModel extends Disposable {
   }
 
   private removeRemainingLayers(remainingLayerIDs: Set<string>) {
-    console.debug('REMAINING LAYERS')
+    config.logger.debug('REMAINING LAYERS')
 
     for (const id of remainingLayerIDs) {
-      console.debug('  REMOVE', id)
+      config.logger.debug('  REMOVE', id)
 
       this.tearDownBackingLayerInteraction(id)
       this.mapLayersOrdering.removeLayer(id)
@@ -555,10 +554,10 @@ export class MapModel extends Disposable {
   }
 
   private removeRemainingSources(remainingSourceIDs: Set<string>) {
-    console.debug('REMAINING SOURCES')
+    config.logger.debug('REMAINING SOURCES')
 
     for (const id of remainingSourceIDs) {
-      console.debug('  REMOVE', id)
+      config.logger.debug('  REMOVE', id)
       this._map?.removeSource(id)
     }
   }
@@ -567,11 +566,11 @@ export class MapModel extends Disposable {
     const source = this._tileLayerSources.get(id)
     if (source == null) { return }
 
-    console.groupCollapsed("RELOAD", id, url)
+    config.logger.groupCollapsed("RELOAD", id, url)
 
     const sourceID = this.tileLayerSourceID(id)
     const mapSource = this._map?.getSource(sourceID)
-    console.debug('sourceID:', sourceID)
+    config.logger.debug('sourceID:', sourceID)
 
     if (mapSource != null && 'tiles' in mapSource && 'setTiles' in mapSource && isFunction(mapSource.setTiles)) {
       mapSource.setTiles([url ?? mapSource.tiles])
@@ -583,7 +582,7 @@ export class MapModel extends Disposable {
       const layerIDs = this.layerIDsDependingOnSource(sourceID)
       for (const id of layerIDs) {
         this.mapLayersOrdering.removeLayer(id)
-        console.debug('removed', id, this._map.style.getLayersOrder())
+        config.logger.debug('removed', id, this._map.style.getLayersOrder())
       }
 
       // Remove the source and then run the sync function to add everything back.
@@ -602,7 +601,7 @@ export class MapModel extends Disposable {
       this.syncBackingLayers()
     }
 
-    console.groupEnd()
+    config.logger.groupEnd()
   }
 
   private layerIDsDependingOnSource(sourceID: string) {
@@ -716,7 +715,7 @@ export class MapModel extends Disposable {
   // #region Layer groups
 
   private mapLayersOrdering = new MapLayersOrdering(
-    () => this.style,
+    () => this.mapStyle,
     () => this._map?.style.getLayersOrder() ?? [],
     (layer, insertBefore) => { this._map?.style.addLayer(layer, insertBefore) },
     id => { this._map?.removeLayer(id) }
@@ -1017,11 +1016,4 @@ function lngLatBoundsToBBox(bounds: ReturnType<maptiler_Map['getBounds']>): BBox
     bounds.getEast(),
     bounds.getNorth(),
   ])
-}
-
-export function defaultStyle(): MapStyleSpecification {
-  return {
-    style:              MapStyle.DATAVIZ.DEFAULT,
-    backgroundTopLayer: 'Country border',
-  }
 }

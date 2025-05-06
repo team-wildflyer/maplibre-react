@@ -1,12 +1,16 @@
 import * as maptilersdk from '@maptiler/sdk'
 import { isFunction, merge } from 'lodash'
 import { DeepPartial } from 'ytil'
+import { MapStyleSpecification } from './types'
 
 export interface Config {
   apiKey:         string
   logger:         LoggerInterface
   updateDebounce: number
-  layerPrefix:    (type?: 'tile' | 'polygon') => string
+
+  defaultStyle: MapStyleSpecification,
+
+  layerPrefix: (type?: 'tile' | 'polygon') => string
 }
 
 export interface LoggerInterface {
@@ -15,6 +19,9 @@ export interface LoggerInterface {
   warn(...args: any[]): void
   info(...args: any[]): void
   debug(...args: any[]): void
+
+  groupCollapsed(...args: any[]): void
+  groupEnd(...args: any[]): void
 }
 
 const config: Config = {
@@ -22,7 +29,9 @@ const config: Config = {
   logger: console,
 
   updateDebounce: 16,
-  layerPrefix:    type => `maplibre-react-${type}-layer`,
+  defaultStyle:   maptilersdk.MapStyle.DATAVIZ.DEFAULT,
+
+  layerPrefix: type => `maplibre:${type}:`,
 }
 
 export default config

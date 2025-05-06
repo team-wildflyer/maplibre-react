@@ -1,10 +1,10 @@
 import { FitBoundsOptions, MapOptions } from '@maptiler/sdk'
 import { useMap } from 'maplibre-react'
-import React, { Ref, useEffect, useImperativeHandle, useRef } from 'react'
+import React, { Ref, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { useSize } from 'react-measure'
 import { forwardRef } from 'react-util'
-import { defaultStyle } from './MapModel'
 import { Viewport } from './Viewport'
+import config from './config'
 import './styles.css'
 import { FitBoundsOptionsCallback, MapStyleSpecification } from './types'
 
@@ -12,7 +12,7 @@ export interface MapProps {
   /**
    * The map style. The default is `MapStyle.DATAVIZ.DEFAULT`.
    */
-  style: MapStyleSpecification
+  mapStyle: MapStyleSpecification
   
   /**
    * The default viewport of the map. This is used to set the initial bounds of the map, and is also used when
@@ -50,10 +50,10 @@ export interface MapHandle {
 export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
 
   const {
-    style = defaultStyle(),
+    mapStyle = config.defaultStyle,
     defaultViewport,
     fitBoundsOptions,
-    labelsVisible,
+    labelsVisible = true,
     children,
     options = {},
   } = props
@@ -61,41 +61,38 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
   const map = useMap()
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const wrapperRef = useRef<HTMLDivElement | null>(null)
+  const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null)
 
-  const styleRef = useRef(style)
+  const mapStyleRef = useRef(mapStyle)
   const defaultViewportRef = useRef(defaultViewport)
   const labelsVisibleRef = useRef(labelsVisible)
 
   // #region Initialization
 
   useEffect(() => {
-    const wrapper = wrapperRef.current
-    if (wrapper == null) {
-      return map.disconnect()
-    }
+    if (wrapper == null) { return }
 
     // Set these immediately so the map won't flicker. They are updated in a separate effect below.
-    map.setStyle(styleRef.current)
+    map.setMapStyle(mapStyleRef.current)
     if (defaultViewportRef.current != null) {
       map.setDefaultViewport(defaultViewportRef.current)
     }
-    if (labelsVisibleRef.current != null) {
-      map.setLabelsVisible(labelsVisibleRef.current)
-    }
+    map.setLabelsVisible(labelsVisibleRef.current)
 
     map.connect(wrapper, options)
-  }, [map, options])
+    return () => { map.disconnect() }
+  }, [map, options, wrapper])
 
   // #endregion
 
   // #region Prop updates
 
   useEffect(() => {
-    if (style === styleRef.current) { return }
-    styleRef.current = style
-    map.setStyle(styleRef.current)
-  }, [map, style])
+    if (mapStyle === mapStyleRef.current) { return }
+
+    mapStyleRef.current = mapStyle
+    map.setMapStyle(mapStyleRef.current)
+  }, [map, mapStyle])
 
   useEffect(() => {
     if (defaultViewport === defaultViewportRef.current) { return }
@@ -108,16 +105,15 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
   }, [map, defaultViewport])
 
   useEffect(() => {
-    if (fitBoundsOptions == null) { return }
-    map.setFitBoundsOptionsCallback(fitBoundsOptions)
-  }, [fitBoundsOptions, map])
-
-  useEffect(() => {
-    if (labelsVisible == null) { return }
     if (labelsVisible === labelsVisibleRef.current) { return }
     labelsVisibleRef.current = labelsVisible
     map.setLabelsVisible(labelsVisibleRef.current)
   }, [labelsVisible, map])
+
+  useEffect(() => {
+    if (fitBoundsOptions == null) { return }
+    map.setFitBoundsOptionsCallback(fitBoundsOptions)
+  }, [fitBoundsOptions, map])
 
   // #endregion
 
@@ -139,7 +135,7 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
           <div
             className='maplibre-react--Map-Wrapper'
             style={{...size}}
-            ref={wrapperRef}
+            ref={setWrapper}
           />
         )}
         {children}

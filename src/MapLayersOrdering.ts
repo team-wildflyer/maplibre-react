@@ -1,9 +1,10 @@
 import { BackingLayer, LayerGroupOrdering, MapStyleSpecification } from './types'
+import { backgroundTopLayerForMapStyle } from './util'
 
 export class MapLayersOrdering {
 
   constructor(
-    private readonly getStyle: () => MapStyleSpecification | null,
+    private readonly getStyle: () => MapStyleSpecification,
     private readonly getLayers: () => string[],
     private readonly addMapLayer: (layer: BackingLayer, insertBefore?: string) => void,
     private readonly removeMapLayer: (layerID: string) => void,
@@ -125,7 +126,7 @@ export class MapLayersOrdering {
       return direction === 'above' ? bounds[1] : bounds[0]
     } else {
       const layerName = reference === '$background'
-        ? this.getStyle()?.backgroundTopLayer ?? reference
+        ? backgroundTopLayerForMapStyle(this.getStyle()) ?? reference
         : reference
 
         
