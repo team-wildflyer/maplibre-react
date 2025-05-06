@@ -1,7 +1,7 @@
 {
-  "name": "react-autofocus",
+  "name": "maplibre-react",
   "version": "0.0.1",
-  "description": "Provide contextual information for autofocus.",
+  "description": "React wrapper around MapLibre GL JS",
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
@@ -15,10 +15,11 @@
     "react": "^18.0"
   },
   "dependencies": {
+    "classnames": "^2.5.1",
     "lodash": "^4.17.21",
     "react-timer": "workspace:^",
-    "react-util": "workspace:^",
-    "ytil": "workspace:^"
+    "react-util": "workspace:*",
+    "ytil": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.0",
