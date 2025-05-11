@@ -1,7 +1,7 @@
 import { LngLatBounds } from '@maptiler/sdk'
 import { Point } from 'geojson'
 import { BBox, Coordinate, Geometry } from 'geojson-classes'
-import { isPlainObject } from 'lodash'
+import { isArray, isPlainObject } from 'lodash'
 import { Size } from 'ytil'
 
 export class Viewport {
@@ -26,7 +26,7 @@ export class Viewport {
       return input
     } else if (isPlainObject(input) && 'center' in input && 'zoom' in input) {
       return new Viewport({
-        center: Geometry.point(input.center),
+        center: isArray(input.center) ? Geometry.point(input.center) : Geometry.from(input.center),
         zoom:   input.zoom,
       })
     } else {
@@ -48,7 +48,7 @@ export class Viewport {
     }
 
     const zoom = this.params.zoom
-    const [lon, lat] = Geometry.point(this.params.center).coordinates
+    const [lon, lat] = this.params.center.coordinates
 
     const lonMin = lon - (mapSize.width / 2) / Math.pow(2, zoom)
     const latMin = lat - (mapSize.height / 2) / Math.pow(2, zoom)

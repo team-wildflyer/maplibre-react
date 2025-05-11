@@ -357,7 +357,7 @@ export class MapModel extends Disposable {
       type: 'geojson',
       data: {
         type:       'Feature',
-        geometry:   polygon.geometry.geometry,
+        geometry:   polygon.geometry.geoJSON,
         properties: {},
       },
     }
