@@ -32,8 +32,28 @@ export class WorkerTileProvider<Params> extends TileProvider {
     return new Promise((resolve, reject) => {
       const request = this.config.request.call(this, params, abort)
       this.callbacks.set(request, [resolve, reject])
+      abort.signal.addEventListener('abort', this.abortRequest.bind(this, request))
+
       this.queue.push(request)
       this.next()
+    })
+  }
+
+  private abortRequest(request: Params) {
+    // Remove from the queue if it's not assigned yet.
+    const index = this.queue.indexOf(request)
+    if (index >= 0) { this.queue.splice(index, 1) }
+
+    // Remove callbacks.
+    this.callbacks.delete(request)
+
+    // Find any assignment and send it an abort message.
+    const assignment = Array.from(this.assignments.entries()).find(it => it[1] === request)
+    if (assignment == null) { return }
+
+    assignment[0].postMessage({
+      type:    'abort',
+      payload: undefined,
     })
   }
 
@@ -44,7 +64,7 @@ export class WorkerTileProvider<Params> extends TileProvider {
   private next() {
     if (this.queue.length === 0) { return }
     
-    // 1. Assign all open paramss to available workers.
+    // 1. Assign all open params to available workers.
     for (const params of this.queue) {
       const worker = this.availableWorker()
       if (worker == null) { break }
@@ -66,7 +86,10 @@ export class WorkerTileProvider<Params> extends TileProvider {
 
   private assign(params: Params, worker: Worker) {
     this.assignments.set(worker, params)
-    worker.postMessage(params)
+    worker.postMessage({
+      type:    'draw',
+      payload: params,
+    })
   }
 
   // #endregion
@@ -74,7 +97,11 @@ export class WorkerTileProvider<Params> extends TileProvider {
   // #region Worker events
 
   private onWorkerMessage = (event: MessageEvent) => {
-    this.handleWorkerResult(event, callbacks => callbacks[0](event.data))
+    const {type, payload} = event.data as {type: string, payload: any}
+    switch (type) {
+    case 'result':
+      return this.handleWorkerResult(event, callbacks => callbacks[0](payload))
+    }
   }
 
   private onWorkerError = (_event: ErrorEvent) => {
@@ -101,12 +128,11 @@ export class WorkerTileProvider<Params> extends TileProvider {
     this.assignments.delete(worker)
 
     const callbacks = this.callbacks.get(params)
-    if (callbacks == null) { 
-      throw new Error("Callbacks for params not found")
-    }
+    if (callbacks == null) { return } // It was aborted.
 
     this.callbacks.delete(params)
     handle(callbacks)
+    this.next()
   }
   
   // #endregion
