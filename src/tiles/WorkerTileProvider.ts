@@ -64,13 +64,13 @@ export class WorkerTileProvider<Params> extends TileProvider {
   private next() {
     if (this.queue.length === 0) { return }
     
-    // 1. Assign all open params to available workers.
-    for (const params of this.queue) {
+    // 1. Assign all open request to available workers.
+    for (const request of this.queue) {
       const worker = this.availableWorker()
       if (worker == null) { break }
 
-      this.assign(params, worker)
-      this.queue = this.queue.filter(it => it !== params)
+      this.assign(request, worker)
+      this.queue = this.queue.filter(it => it !== request)
     }
   }
 
@@ -84,11 +84,11 @@ export class WorkerTileProvider<Params> extends TileProvider {
     return null
   }
 
-  private assign(params: Params, worker: Worker) {
-    this.assignments.set(worker, params)
+  private assign(request: Params, worker: Worker) {
+    this.assignments.set(worker, request)
     worker.postMessage({
       type:    'draw',
-      payload: params,
+      payload: request,
     })
   }
 
@@ -104,8 +104,12 @@ export class WorkerTileProvider<Params> extends TileProvider {
     }
   }
 
-  private onWorkerError = (_event: ErrorEvent) => {
-    // Already logged by the worker.
+  private onWorkerError = (event: ErrorEvent) => {
+    const worker = event.currentTarget as Worker
+    if (!(worker instanceof Worker)) { return }
+
+    this.recycleWorker(worker)
+    this.next()
   }
 
   private onWorkerMessageError = (event: MessageEvent) => {
@@ -120,19 +124,27 @@ export class WorkerTileProvider<Params> extends TileProvider {
       throw new Error("Invalid worker instance")
     }
 
-    const params = this.assignments.get(worker)
-    if (params == null) { 
-      throw new Error("Request for worker not found")
+    try {
+      const request = this.assignments.get(worker)
+      const callbacks = request == null ? null : this.callbacks.get(request)
+      if (callbacks == null) {
+        // Might have been aborted / recycled in the mean time.
+        return
+      } 
+
+      handle(callbacks)
+    } finally {
+      this.recycleWorker(worker)
+      this.next()
     }
+  }
+
+  private recycleWorker(worker: Worker) {
+    const request = this.assignments.get(worker)
+    if (request == null) { return }
 
     this.assignments.delete(worker)
-
-    const callbacks = this.callbacks.get(params)
-    if (callbacks == null) { return } // It was aborted.
-
-    this.callbacks.delete(params)
-    handle(callbacks)
-    this.next()
+    this.callbacks.delete(request)
   }
   
   // #endregion
@@ -142,7 +154,7 @@ export class WorkerTileProvider<Params> extends TileProvider {
 
 export interface WorkerTileProviderConfig<Req> extends TileProviderOptions {
   poolSize?: number
-  request:   (this: WorkerTileProvider<Req>, params: RequestParameters, abort: AbortController) => Req
+  request:   (this: WorkerTileProvider<Req>, request: RequestParameters, abort: AbortController) => Req
 }
 
 type RequestCallbacks = [(response: GetResourceResponse<any>) => void, (error: Error) => void]
