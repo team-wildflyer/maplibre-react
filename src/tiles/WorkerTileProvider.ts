@@ -55,6 +55,8 @@ export class WorkerTileProvider<Params> extends TileProvider {
       type:    'abort',
       payload: undefined,
     })
+    this.assignments.delete(assignment[0])
+    this.next()
   }
 
   // #endregion
