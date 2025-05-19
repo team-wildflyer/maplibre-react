@@ -1,6 +1,6 @@
 import { addProtocol, GetResourceResponse, removeProtocol, RequestParameters } from '@maptiler/sdk'
-import { isFunction } from 'lodash'
 import { bindMethods } from 'ytil'
+import { TileCache } from './TileCache'
 
 export abstract class TileProvider {
 
@@ -9,7 +9,13 @@ export abstract class TileProvider {
     public readonly options: TileProviderOptions = {}
   ) {
     bindMethods(this)
+
+    if (this.options.cache !== false) {
+      this.cache = new TileCache(1024 * 1024 * 10)
+    }
   }
+
+  private cache: TileCache | null = null
 
   public install() {
     addProtocol(this.protocol, this.handleLoad)
@@ -21,14 +27,13 @@ export abstract class TileProvider {
   }
 
   private async handleLoad(params: RequestParameters, abort: AbortController): Promise<GetResourceResponse<any>> {
-    const {cacheControl, expires} = this.options
+    const cached = this.cache?.fetch(params)
+    if (cached != null) { return {data: cached} }
+
     const data = await this.load(params, abort)
-    
-    return {
-      data,
-      cacheControl: isFunction(cacheControl) ? cacheControl(data) : cacheControl,
-      expires:      isFunction(expires) ? expires(data) : expires,
-    }
+    this.cache?.store(params, data)
+
+    return {data}
   }
 
   protected abstract load(params: RequestParameters, abort: AbortController): Promise<any>
@@ -38,8 +43,6 @@ export abstract class TileProvider {
 export type TileProviderRequest<P> = RequestParameters & {params: P, query: URLSearchParams}
 
 export interface TileProviderOptions {
-  path?: string
-
-  cacheControl?: string | ((data: any) => string)
-  expires?:      string | ((data: any) => string)
+  path?:  string
+  cache?: boolean
 }
