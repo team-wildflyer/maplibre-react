@@ -288,7 +288,7 @@ export class MapModel extends Disposable {
   @queueUntil(({model}) => model.loaded)
   private syncMapStyle() {
     if (this._map == null) { return }
-    if (this._map.getStyle() === this._mapStyle) { return }
+    if (this.isCurrentStyle(this._mapStyle)) { return }
 
     this._map.once('styledata', () => {
       this.syncBackingLayers()
@@ -297,6 +297,18 @@ export class MapModel extends Disposable {
     })
 
     this._map.setStyle(this.mapStyle)
+  }
+
+  private isCurrentStyle(style: MapStyleSpecification) {
+    if (this._map == null) { return false }
+    if (this._map.getStyle() == null) { return false }
+    if (this._map.getStyle() === style) { return true }
+
+    if ('id' in this._map.style.stylesheet && this._map.style.stylesheet.id === style) {
+      return true
+    }
+
+    return false
   }
 
   // #endregion
@@ -747,9 +759,11 @@ export class MapModel extends Disposable {
     () => this.mapStyle,
     () => this._map?.style.getLayersOrder() ?? [],
     (layer, insertBefore) => {
+      console.log('--> insert', layer.id, insertBefore)
       this._map?.style.addLayer(layer, insertBefore)
     },
     id => {
+      console.log('--> remove', id)
       this._map?.removeLayer(id)
     }
   )

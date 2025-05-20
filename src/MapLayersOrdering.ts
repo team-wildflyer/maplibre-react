@@ -64,6 +64,17 @@ export class MapLayersOrdering {
     this.removeMapLayer(layerID)
   }
 
+  public syncAll() {
+    this.layers = this.getLayers()
+
+    for (const group of this.layerGroups.values()) {
+      this.syncLayerGroup(group)
+    }
+
+    // Sync the unassigned group
+    this.syncLayerGroup(this.unassigned)
+  }
+
   private syncLayerGroup(group: LayerGroup) {
     this.layers = this.getLayers()
 
