@@ -759,11 +759,9 @@ export class MapModel extends Disposable {
     () => this.mapStyle,
     () => this._map?.style.getLayersOrder() ?? [],
     (layer, insertBefore) => {
-      console.log('--> insert', layer.id, insertBefore)
       this._map?.style.addLayer(layer, insertBefore)
     },
     id => {
-      console.log('--> remove', id)
       this._map?.removeLayer(id)
     }
   )
