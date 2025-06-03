@@ -31,7 +31,9 @@ export abstract class TileProvider {
     if (cached != null) { return {data: cached} }
 
     const data = await this.load(params, abort)
-    this.cache?.store(params, data)
+    if (data != null) {
+      this.cache?.store(params, data)
+    }
 
     return {data}
   }
