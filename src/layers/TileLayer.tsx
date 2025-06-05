@@ -13,7 +13,7 @@ export interface TileLayerProps {
   children?: React.ReactNode
 }
 
-const _TileLayer = memo('TileLayer', (props: TileLayerProps) => {
+const TileLayer$ = memo('TileLayer', (props: TileLayerProps) => {
 
   const {
     name,
@@ -32,7 +32,7 @@ const _TileLayer = memo('TileLayer', (props: TileLayerProps) => {
 
 })
 
-Object.assign(_TileLayer, {
+Object.assign(TileLayer$, {
   Source:       TileLayerSource,
   Fill:         TileLayerFill,
   Line:         TileLayerLine,
@@ -41,7 +41,7 @@ Object.assign(_TileLayer, {
   FeatureState: TileLayerFeatureState,
 })
 
-export const TileLayer = _TileLayer as typeof _TileLayer & {
+export const TileLayer = TileLayer$ as typeof TileLayer$ & {
   Source:       typeof TileLayerSource
   Fill:         typeof TileLayerFill
   Line:         typeof TileLayerLine
