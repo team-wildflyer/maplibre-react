@@ -43,14 +43,13 @@ export const TileLayerFeatureState = memo('TileLayerFeatureState', (props: TileL
   
   const map = useMap()
   const prevIDRef = useRef<string | number | null>()
-  const prefixedSource = source == null ? null : map.tileLayerSourceID(source)
 
   useEffect(() => {
-    if (prefixedSource == null) { return }
+    if (source == null) { return }
 
     if (!isToggle && prevIDRef.current != null && prevIDRef.current !== singleProps.featureID) {
       map.setFeatureState({
-        source:      prefixedSource,
+        source:      source,
         sourceLayer: sourceLayer,
         id:          prevIDRef.current,
       }, stateExitRef.current)
@@ -59,29 +58,29 @@ export const TileLayerFeatureState = memo('TileLayerFeatureState', (props: TileL
     const toggle = isToggle ? toggleProps.toggle : true
     if (singleProps.featureID != null) {
       map.setFeatureState({
-        source:      prefixedSource,
+        source:      source,
         sourceLayer: sourceLayer,
         id:          singleProps.featureID,
       }, toggle ? stateEnterRef.current : stateExitRef.current)
     }
 
     prevIDRef.current = singleProps.featureID
-  }, [isToggle, map, prefixedSource, singleProps.featureID, source, sourceLayer, stateEnterRef, stateExitRef, toggleProps.toggle])
+  }, [isToggle, map, source, singleProps.featureID, sourceLayer, stateEnterRef, stateExitRef, toggleProps.toggle])
 
   useEffect(() => {
-    if (prefixedSource == null) { return }
+    if (source == null) { return }
 
     return () => {
       if (prevIDRef.current != null) {
         map.setFeatureState({
-          source:      prefixedSource,
+          source:      source,
           sourceLayer: sourceLayer,
           id:          prevIDRef.current,
         // eslint-disable-next-line react-hooks/exhaustive-deps
         }, stateExitRef.current)
       }
     }
-  }, [isToggle, map, prefixedSource, singleProps.featureID, source, sourceLayer, stateEnterRef, stateExitRef, toggleProps.toggle])
+  }, [isToggle, map, source, singleProps.featureID, sourceLayer, stateEnterRef, stateExitRef, toggleProps.toggle])
 
   return null
 

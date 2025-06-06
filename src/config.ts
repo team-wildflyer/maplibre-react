@@ -9,8 +9,6 @@ export interface Config {
   updateDebounce: number
 
   defaultStyle: MapStyleSpecification,
-
-  layerPrefix: (type?: 'tile' | 'polygon') => string
 }
 
 export interface LoggerInterface {
@@ -30,8 +28,6 @@ const config: Config = {
 
   updateDebounce: 16,
   defaultStyle:   maptilersdk.MapStyle.DATAVIZ.DEFAULT,
-
-  layerPrefix: type => `maplibre:${type}:`,
 }
 
 export default config

@@ -21,7 +21,7 @@ import {
 import { TileLayer } from '@maptiler/weather'
 import { Point } from 'geojson'
 import { BBox, Geometry } from 'geojson-classes'
-import { isFunction, isPlainObject } from 'lodash'
+import { isFunction } from 'lodash'
 import Timer from 'react-timer'
 import { Disposable } from 'react-util'
 import { bindMethods, objectEquals, objectKeys } from 'ytil'
@@ -115,6 +115,8 @@ export class MapModel extends Disposable {
       ...options,
     })
 
+    this._map.showTileBoundaries = options.showTileBoundaries ?? false
+
     // Set up initialization event handlers. These basically all flush the initialization queue.
     this._map.once('load', this.onLoad)
     this._map.once('idle', this.onIdle)
@@ -155,6 +157,8 @@ export class MapModel extends Disposable {
 
     this._loaded = true
 
+    this.deriveUnmanagedLayerIDs()
+    this.dericeUnmanagerSourceIDs()
     this.syncFeatureStates()
     this.syncBackingLayers()
     this.syncMarkers()
@@ -291,6 +295,7 @@ export class MapModel extends Disposable {
     if (this.isCurrentStyle(this._mapStyle)) { return }
 
     this._map.once('styledata', () => {
+      this.deriveUnmanagedLayerIDs()
       this.syncBackingLayers()
       this.syncMarkers()
       this.syncLabelVisibility()
@@ -330,7 +335,7 @@ export class MapModel extends Disposable {
 
     // Only applicable to tile layers.
     const layerIDs = this._map.style.getLayersOrder().filter(
-      it => it.startsWith(config.layerPrefix('tile'))
+      it => this.unmanagedLayerIDs.has(it)
     )
 
     for (const id of layerIDs) {
@@ -375,10 +380,10 @@ export class MapModel extends Disposable {
     }
   }
 
-  private buildPolyFillLayer(id: string, polygon: PolygonConfig): BackingLayer {
+  private buildPolygonFillLayer(id: string, polygon: PolygonConfig): BackingLayer {
     return {
-      id:     this.polygonFillLayerID(id),
-      source: this.polygonSourceID(id ),
+      id:     `${id}:fill`,
+      source: id,
       type:   'fill',
       paint:  {
         'fill-color':     polygon.color,
@@ -388,10 +393,10 @@ export class MapModel extends Disposable {
     }
   }
 
-  private buildPolyLineLayer(id: string, polygon: PolygonConfig): BackingLayer {
+  private buildPolygonOutlineLayer(id: string, polygon: PolygonConfig): BackingLayer {
     return {
-      id:     this.polygonLineLayerID(id),
-      source: this.polygonSourceID(id ),
+      id:     `${id}:outline`,
+      source: id,
       type:   'line',
       paint:  {
         'line-color':   polygon.color,
@@ -406,6 +411,9 @@ export class MapModel extends Disposable {
 
   // Backing layers are the map-level layers that drive polygons and tile layers.
 
+  private unmanagedLayerIDs = new Set<string>()
+  private unmanagerSourceIDs = new Set<string>()
+
   private layerTimer = new Timer()
 
   private readonly _tileLayerBackingLayers = new Map<string, [string, BackingLayer, BackingLayerOptions]>()
@@ -414,29 +422,25 @@ export class MapModel extends Disposable {
   private currentBackingLayers = new Map<string, [string, BackingLayer]>()
 
   public ensureBackingLayer(parentName: string, layer: BackingLayer, options: BackingLayerOptions = {}) {
-    const prefixedID = layer.id.startsWith(config.layerPrefix('tile')) ? layer.id : this.tileLayerBackingLayerID(layer.id)
-    if (this._tileLayerBackingLayers.has(prefixedID)) { return }
+    if (this._tileLayerBackingLayers.has(layer.id)) { return }
 
-    this._tileLayerBackingLayers.set(prefixedID, [parentName, layer, options])
-    this.syncBackingLayers()
+    this._tileLayerBackingLayers.set(layer.id, [parentName, layer, options])
+    this.syncBackingLayersSoon()
 
     return () => {
-      if (!this._tileLayerBackingLayers.has(prefixedID)) { return }
+      if (!this._tileLayerBackingLayers.has(layer.id)) { return }
       
-      this._tileLayerBackingLayers.delete(prefixedID)
-      this.syncBackingLayers()
+      this._tileLayerBackingLayers.delete(layer.id)
+      this.syncBackingLayersSoon()
     }
   }
 
   public updateBackingLayerPaint(layerID: string, paint: LayerSpecification['paint']) {
     if (this._map == null) { return }
+    if (this._map.style?.getLayer(layerID) == null) { return }
 
-    const prefixedID = this.tileLayerBackingLayerID(layerID)
-    if (this._map.style?.getLayer(prefixedID) == null) { return }
-
-    
     for (const [key, value] of Object.entries(paint ?? {})) {
-      this._map.setPaintProperty(prefixedID, key, value)
+      this._map.setPaintProperty(layerID, key, value)
     }
   }
 
@@ -444,11 +448,11 @@ export class MapModel extends Disposable {
     const prevURL = this._tileLayerSources.get(id)?.[0]
     if (url === prevURL) { return }
 
-    const existingSource = this._map?.getSource(this.tileLayerSourceID(id))
+    const existingSource = this._map?.getSource(id)
     this._tileLayerSources.set(id, [url, source])
 
     if (prevURL == null) {
-      this.syncBackingLayers()
+      this.syncBackingLayersSoon()
     } else if (existingSource != null && 'setTiles' in existingSource && isFunction(existingSource.setTiles)) {
       existingSource.setTiles([url])
     } else {
@@ -460,8 +464,30 @@ export class MapModel extends Disposable {
     if (!this._tileLayerSources.has(id)) { return }
     this._tileLayerSources.delete(id)
 
-    this.syncBackingLayers()
+    this.syncBackingLayersSoon()
   }
+
+  private deriveUnmanagedLayerIDs() {
+    if (this._map == null) { return }
+    
+    const layerIDs = this._map.style.getLayersOrder()
+    this.unmanagedLayerIDs = new Set(layerIDs)
+  }
+
+  private dericeUnmanagerSourceIDs() {
+    if (this._map == null) { return }
+
+    const sourceIDs = objectKeys(this._map.getStyle()?.sources ?? {}).map(it => it.toString())
+    this.unmanagerSourceIDs = new Set(sourceIDs)
+  }
+
+  private backingLayersTimer = new Timer()
+  private syncBackingLayersSoon() {
+    this.backingLayersTimer.debounce(
+      () => this.syncBackingLayers(),
+      config.updateDebounce
+    )
+  } 
 
   /**
    * Synchronizes backing layers for tile layers & polygons.
@@ -476,13 +502,9 @@ export class MapModel extends Disposable {
     try {
       config.logger.groupCollapsed("SYNC")
 
-      const filterWithPrefix = (ids: string[]) => {
-        return ids.filter(it => it.startsWith(config.layerPrefix('tile')) || it.startsWith(config.layerPrefix('polygon')))
-      }
-
       // 1. First ensure all sources are there.
-      const currentSourceIDs = filterWithPrefix(objectKeys(style.sources) as string[])
-      const currentLayerIDs = filterWithPrefix(this._map.style.getLayersOrder())
+      const currentSourceIDs = (objectKeys(style.sources) as string[]).filter(it => !this.unmanagerSourceIDs.has(it))
+      const currentLayerIDs = this._map.style.getLayersOrder().filter(it => !this.unmanagedLayerIDs.has(it))
       const remainingSourceIDs = new Set(currentSourceIDs)
       const remainingLayerIDs = new Set(currentLayerIDs)
 
@@ -507,14 +529,13 @@ export class MapModel extends Disposable {
     config.logger.debug('nextSourceIDs:', Array.from(this._tileLayerSources.keys()).join(', '))
 
     for (const [id, [url, source]] of this._tileLayerSources) {
-      const prefixedID = this.tileLayerSourceID(id)
-      if (remainingSourceIDs.has(prefixedID)) {
-        remainingSourceIDs.delete(prefixedID)
+      if (remainingSourceIDs.has(id)) {
+        remainingSourceIDs.delete(id)
       } else {
         const spec = {...source, tiles: [url]}
 
-        config.logger.debug('  ADD', id, `(prefixed=${prefixedID}, url=${url})`)
-        this._map?.addSource(prefixedID, spec)
+        config.logger.debug('  ADD', id, `(url=${url})`)
+        this._map?.addSource(id, spec)
       }
     }
   }
@@ -524,25 +545,14 @@ export class MapModel extends Disposable {
     config.logger.debug('nextLayerIDs:', Array.from(this._tileLayerBackingLayers.keys()).join(', '))
 
     for (const [id, [parentName, layer, options]] of this._tileLayerBackingLayers) {
-      const prefixedID = this.tileLayerBackingLayerID(id)
-
-      if (remainingLayerIDs.has(prefixedID)) {
-        remainingLayerIDs.delete(prefixedID)
+      if (remainingLayerIDs.has(id)) {
+        remainingLayerIDs.delete(id)
       } else {
-        if (!layer.id.startsWith(config.layerPrefix('tile'))) {
-          layer.id = prefixedID
-        }
-
-        // Same with the source, if there is a source specified.
-        if (isPlainObject(layer) && 'source' in layer && layer.source != null && !layer.source.startsWith(config.layerPrefix('tile'))) {
-          layer.source = this.tileLayerSourceID(layer.source)
-        }
-
         config.logger.debug('  ADD', id)
         this.mapLayersOrdering.addLayer(layer, options)
         this.currentBackingLayers.set(id, [parentName, layer])
 
-        this.setUpBackingLayerInteraction(prefixedID)
+        this.setUpBackingLayerInteraction(id)
       }
     }
   }
@@ -552,15 +562,13 @@ export class MapModel extends Disposable {
     config.logger.debug('polygonIDs:', Array.from(this.polygons.keys()).join(', '))
 
     for (const [id, [polygon]] of this.polygons) {
-      const prefixedID = this.polygonSourceID(id)
-
-      if (remainingSourceIDs.has(prefixedID)) {
-        remainingSourceIDs.delete(prefixedID)
+      if (remainingSourceIDs.has(id)) {
+        remainingSourceIDs.delete(id)
       } else {
         const source = this.buildPolySource(polygon)
 
-        config.logger.debug('  ADD', id, `(prefixed=${prefixedID})`)
-        this._map?.addSource(prefixedID, source)
+        config.logger.debug('  ADD', id)
+        this._map?.addSource(id, source)
       }
     }
   }
@@ -570,8 +578,8 @@ export class MapModel extends Disposable {
     config.logger.debug('polygonIDs:', Array.from(this.polygons.keys()).join(', '))
 
     for (const [id, [polygon, options]] of this.polygons) {
-      const fillLayer = this.buildPolyFillLayer(id, polygon)
-      const lineLayer = this.buildPolyLineLayer(id, polygon)
+      const fillLayer = this.buildPolygonFillLayer(id, polygon)
+      const lineLayer = this.buildPolygonOutlineLayer(id, polygon)
 
       remainingLayerIDs.delete(fillLayer.id)
       remainingLayerIDs.delete(lineLayer.id)
@@ -603,13 +611,12 @@ export class MapModel extends Disposable {
     }
   }
 
-  public async reloadTileLayerSource(id: string, url?: string) {
-    const source = this._tileLayerSources.get(id)
+  public async reloadTileLayerSource(sourceID: string, url?: string) {
+    const source = this._tileLayerSources.get(sourceID)
     if (source == null) { return }
 
-    config.logger.groupCollapsed("RELOAD", id, url)
+    config.logger.groupCollapsed("RELOAD", sourceID, url)
 
-    const sourceID = this.tileLayerSourceID(id)
     const mapSource = this._map?.getSource(sourceID)
     config.logger.debug('sourceID:', sourceID)
 
@@ -635,13 +642,10 @@ export class MapModel extends Disposable {
 
     // If a new URL is specified, update it.
     if (url != null && url !== source[0]) {
-      this._tileLayerSources.set(id, [url, source[1]])
+      this._tileLayerSources.set(sourceID, [url, source[1]])
     }
 
-    if (this._map != null) {
-      this.syncBackingLayers()
-    }
-
+    this.syncBackingLayersSoon()
     config.logger.groupEnd()
   }
 
@@ -719,38 +723,6 @@ export class MapModel extends Disposable {
     this._map.getCanvas().style.cursor = ''
   }
 
-  public tileLayerSourceID(sourceID: string) {
-    return config.layerPrefix('tile') + sourceID
-  }
-
-  public polygonSourceID(sourceID: string) {
-    return config.layerPrefix('polygon') + sourceID
-  }
-
-  public tileLayerBackingLayerID(layerID: string) {
-    if (layerID.startsWith(config.layerPrefix('tile'))) {
-      return layerID
-    } else {
-      return config.layerPrefix('tile') + layerID
-    }
-  }
-
-  public polygonFillLayerID(layerID: string) {
-    if (layerID.startsWith(config.layerPrefix('polygon'))) {
-      return layerID + ':fill'
-    } else {
-      return config.layerPrefix('polygon') + layerID + ':fill'
-    }
-  }
-
-  public polygonLineLayerID(layerID: string) {
-    if (layerID.startsWith(config.layerPrefix('polygon'))) {
-      return layerID + ':line'
-    } else {
-      return config.layerPrefix('polygon') + layerID + ':line'
-    }
-  }
-
   // #endregion
 
   // #region Layer groups
@@ -769,11 +741,11 @@ export class MapModel extends Disposable {
   public registerLayerGroup(name: string, ordering: LayerGroupOrdering) {
     // TODO Double rendering.
     this.mapLayersOrdering.addGroup(name, ordering)
-    this.syncBackingLayers()
+    this.syncBackingLayersSoon()
 
     return () => {
       this.mapLayersOrdering.removeGroup(name)
-      this.syncBackingLayers()
+      this.syncBackingLayersSoon()
     }
   }
 
@@ -830,8 +802,7 @@ export class MapModel extends Disposable {
    * @param listener The click listeren.
    */
   public addPolygonClickListener(polygonID: string, listener: LayerClickListener) {
-    const prefixedID = this.polygonFillLayerID(polygonID)
-    return this.addBackingLayerClickListener(prefixedID, listener)
+    return this.addBackingLayerClickListener(polygonID, listener)
   }
 
   /**
@@ -841,8 +812,7 @@ export class MapModel extends Disposable {
    * @param listener The click listeren.
    */
   public addTileBackingLayerClickListener(layerID: string, listener: LayerClickListener) {
-    const prefixedID = this.tileLayerBackingLayerID(layerID)
-    return this.addBackingLayerClickListener(prefixedID, listener)
+    return this.addBackingLayerClickListener(layerID, listener)
   }
 
   private addBackingLayerClickListener(prefixedID: string, listener: LayerClickListener) {
@@ -1030,7 +1000,9 @@ export type MapOptions = Omit<maptiler_MapOptions,
   | 'bounds'
   | 'center'
   | 'zoom'
->
+> & {
+  showTileBoundaries?: boolean
+}
 
 export type FitBBoxOptions = Omit<FitBoundsOptions, 'center' | 'zoom'>
 

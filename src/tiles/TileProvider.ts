@@ -27,15 +27,23 @@ export abstract class TileProvider {
   }
 
   private async handleLoad(params: RequestParameters, abort: AbortController): Promise<GetResourceResponse<any>> {
+    const path = new URL(params.url).pathname.replace(/^\//, '')
+
     const cached = this.cache?.fetch(params)
-    if (cached != null) { return {data: cached} }
+    if (cached != null) {
+      return {data: cached}
+    }
 
     const data = await this.load(params, abort)
     if (data != null) {
       this.cache?.store(params, data)
     }
 
-    return {data}
+    return {
+      data,
+      cacheControl: 'no-cache',
+      expires:      new Date(),
+    }
   }
 
   protected abstract load(params: RequestParameters, abort: AbortController): Promise<any>

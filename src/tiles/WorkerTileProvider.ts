@@ -68,6 +68,15 @@ export class WorkerTileProvider<Params> extends TileProvider {
     this.next()
   }
 
+  public sendMessage(type: string, payload: any) {
+    for (const worker of this.workers) {
+      worker.postMessage({
+        type,
+        payload,
+      })
+    }
+  }
+
   // #endregion
 
   // #region Queue management
