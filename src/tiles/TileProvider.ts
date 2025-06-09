@@ -1,13 +1,15 @@
-import { addProtocol, GetResourceResponse, removeProtocol, RequestParameters } from '@maptiler/sdk'
+import { addProtocol, removeProtocol, RequestParameters } from '@maptiler/sdk'
+import { Disposable } from 'react-util'
 import { bindMethods } from 'ytil'
 import { TileCache } from './TileCache'
 
-export abstract class TileProvider {
+export abstract class TileProvider extends Disposable {
 
   constructor(
     public readonly protocol: string,
     public readonly options: TileProviderOptions = {}
   ) {
+    super()
     bindMethods(this)
 
     if (this.options.cache !== false) {
@@ -26,9 +28,7 @@ export abstract class TileProvider {
     removeProtocol(this.protocol)
   }
 
-  private async handleLoad(params: RequestParameters, abort: AbortController): Promise<GetResourceResponse<any>> {
-    const path = new URL(params.url).pathname.replace(/^\//, '')
-
+  private async handleLoad(params: RequestParameters, abort: AbortController): Promise<any> {
     const cached = this.cache?.fetch(params)
     if (cached != null) {
       return {data: cached}

@@ -1,13 +1,13 @@
 import { GetResourceResponse, RequestParameters } from '@maptiler/sdk'
-import { range } from 'lodash'
+import { isFunction, range } from 'lodash'
 import { TileProvider, TileProviderOptions } from './TileProvider'
 
-export class WorkerTileProvider<Params> extends TileProvider {
+export class WorkerTileProvider extends TileProvider {
 
   constructor(
     protocol: string,
     private readonly entry: string,
-    private readonly config: WorkerTileProviderConfig<Params>,
+    private readonly config: WorkerTileProviderOptions,
   ) {
     super(protocol, config)
 
@@ -20,11 +20,19 @@ export class WorkerTileProvider<Params> extends TileProvider {
     })
   }
 
-  private workers: Worker[]
+  private workers:   Worker[]
+  private callbacks: Map<string, RequestCallbacks[]> = new Map()
 
-  private queue:       Array<[string, Params]> = []
-  private callbacks:   Map<string, RequestCallbacks[]> = new Map()
-  private assignments: Map<Worker, string> = new Map()
+  private pending:  string[] = []
+  private assigned: Map<Worker, string> = new Map()
+
+  private getWorkerAssignedTo(url: string) {
+    for (const entry of this.assigned.entries()) {
+      if (entry[1] === url) { return entry[0] }
+    }
+    return null
+
+  }
 
   // #region Interface
 
@@ -35,45 +43,51 @@ export class WorkerTileProvider<Params> extends TileProvider {
       const callbacks = this.callbacks.get(params.url)
       if (callbacks != null) {
         callbacks.push([resolve, reject])
-      } else {
-        // This is a new request.      
-        const request = this.config.request.call(this, params, abort)
-        this.callbacks.set(params.url, [[resolve, reject]])
-        abort.signal.addEventListener('abort', this.abortRequest.bind(this, params.url))
-
-        this.queue.push([params.url, request])
+        return
       }
+      
+      // This is a new request. Add it to the list of pending requests and set up the callbacks.
+      this.pending.push(params.url)
+      this.callbacks.set(params.url, [[resolve, reject]])
 
+      // Bind the abort signal to the request.
+      abort.signal.addEventListener('abort', this.abortRequest.bind(this, params.url))
+
+      // If we have a worker available, assign it to this request.
       this.next()
     })
   }
 
   private abortRequest(url: string) {
-    // Remove from the queue if it's not assigned yet.
-    const index = this.queue.findIndex(it => it[0] === url)
-    if (index >= 0) { this.queue.splice(index, 1) }
-
     // Remove callbacks.
     this.callbacks.delete(url)
 
-    // Find any assignment and send it an abort message.
-    const assignment = Array.from(this.assignments.entries()).find(it => it[1] === url)
-    if (assignment == null) { return }
+    // Remove from the pending list of requests.
+    this.pending = this.pending.filter(it => it !== url)
 
-    assignment[0].postMessage({
-      type:    'abort',
-      payload: undefined,
-    })
-    this.assignments.delete(assignment[0])
+    // Abort and unassign any worker if applicable.
+    const worker = this.getWorkerAssignedTo(url)
+    if (worker == null) { return }
+
+    worker.postMessage({type: 'abort'})
+    this.assigned.delete(worker)
+
+    // This may free up a worker, so we can try to process the next request.
     this.next()
   }
 
-  public sendMessage(type: string, payload: any) {
+  // #endregion
+
+  // #region Other methods
+
+  public broadcastMessage(type: string, payload: any): void
+  public broadcastMessage(type: string, payload: () => {payload: any, transfer: Transferable[]}): void
+  public broadcastMessage(type: string, arg: any) {
+    const getPayload = () => isFunction(arg) ? arg() : {payload: arg, transfer: undefined}
+
     for (const worker of this.workers) {
-      worker.postMessage({
-        type,
-        payload,
-      })
+      const {payload, transfer} = getPayload()
+      worker.postMessage({type, payload}, transfer)
     }
   }
 
@@ -82,20 +96,20 @@ export class WorkerTileProvider<Params> extends TileProvider {
   // #region Queue management
 
   private next() {
-    if (this.queue.length === 0) { return }
+    if (this.pending.length === 0) { return }
     
-    for (const [url, params] of this.queue) {
+    for (const url of this.pending) {
       const worker = this.availableWorker()
       if (worker == null) { break }
 
-      this.assign(worker, url, params)
-      this.queue = this.queue.filter(it => it[0] !== url)
+      this.assignAndStart(worker, url)
+      this.pending = this.pending.filter(it => it[0] !== url)
     }
   }
 
   private availableWorker() {
     for (const worker of this.workers) {
-      if (!this.assignments.has(worker)) {
+      if (!this.assigned.has(worker)) {
         return worker
       }
     }
@@ -103,12 +117,12 @@ export class WorkerTileProvider<Params> extends TileProvider {
     return null
   }
 
-  private assign(worker: Worker, url: string, params: Params) {
-    this.assignments.set(worker, url)
+  private assignAndStart(worker: Worker, url: string) {
+    this.assigned.set(worker, url)
     worker.postMessage({
-      type:    'draw',
-      payload: params,
-    })
+      type:    'draw', 
+      payload: url,
+    },)
   }
 
   // #endregion
@@ -144,7 +158,7 @@ export class WorkerTileProvider<Params> extends TileProvider {
     }
 
     try {
-      const url = this.assignments.get(worker)
+      const url = this.assigned.get(worker)
       if (url == null) { return }
 
       const callbacks = url == null ? null : this.callbacks.get(url)
@@ -168,10 +182,10 @@ export class WorkerTileProvider<Params> extends TileProvider {
   }
 
   private recycleWorker(worker: Worker) {
-    const url = this.assignments.get(worker)
+    const url = this.assigned.get(worker)
     if (url == null) { return }
 
-    this.assignments.delete(worker)
+    this.assigned.delete(worker)
     this.callbacks.delete(url)
   }
   
@@ -180,9 +194,11 @@ export class WorkerTileProvider<Params> extends TileProvider {
 }
 
 
-export interface WorkerTileProviderConfig<Req> extends TileProviderOptions {
+export interface WorkerTileProviderOptions extends TileProviderOptions {
   poolSize?: number
-  request:   (this: WorkerTileProvider<Req>, request: RequestParameters, abort: AbortController) => Req
+
+  init?:   (this: WorkerTileProvider) => Promise<void>
+  deinit?: (this: WorkerTileProvider) => Promise<void>
 }
 
 type RequestCallbacks = [(response: GetResourceResponse<any>) => void, (error: Error) => void]
