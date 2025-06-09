@@ -20,53 +20,56 @@ export class WorkerTileProvider extends TileProvider {
     })
   }
 
-  private workers:   Worker[]
-  private callbacks: Map<string, RequestCallbacks[]> = new Map()
+  private workers:  Worker[]
+  private pending:  DrawRequest[] = []
+  private assigned: Map<Worker, DrawRequest> = new Map()
 
-  private pending:  string[] = []
-  private assigned: Map<Worker, string> = new Map()
-
-  private getWorkerAssignedTo(url: string) {
-    for (const entry of this.assigned.entries()) {
-      if (entry[1] === url) { return entry[0] }
-    }
-    return null
-
-  }
+  private nextUID: number = 0
 
   // #region Interface
 
-  protected load(params: RequestParameters, abort: AbortController): Promise<GetResourceResponse<any>> {
+  protected load({url}: RequestParameters, abort: AbortController): Promise<GetResourceResponse<any>> {
     return new Promise((resolve, reject) => {
-      // Check to see if we already have callbacks for this request. If so, it is either queued or currently
-      // being processed. We can just add our callbacks to the existing ones.
-      const callbacks = this.callbacks.get(params.url)
-      if (callbacks != null) {
-        callbacks.push([resolve, reject])
-        return
-      }
-      
-      // This is a new request. Add it to the list of pending requests and set up the callbacks.
-      this.pending.push(params.url)
-      this.callbacks.set(params.url, [[resolve, reject]])
+      const uid = this.nextUID++
 
       // Bind the abort signal to the request.
-      abort.signal.addEventListener('abort', this.abortRequest.bind(this, params.url))
+      const onAbort = this.abortRequest.bind(this, uid)
 
+      // Create a cleanup function to remove the abort listener.
+      const cleanup = () => {
+        abort.signal.removeEventListener('abort', onAbort)
+      }
+
+      // When a request is aborted, we hard-abort the request. We also send the worker an abort message, 
+      // but just in case wires get crossed and/or the worker does not handle the abort message, we
+      // hard-reject the request here. When cleaning up, we remove the assigned request, which results
+      // in any worker rejection/resolution to be ignored later.
+      abort.signal.addEventListener('abort', () => {
+        cleanup()
+        onAbort()
+        reject(new Error("Request aborted"))
+      })
+
+      // Queue the request.
+      this.pending.push({
+        uid,
+        url,
+        resolve,
+        reject,
+        cleanup,
+      })
+      
       // If we have a worker available, assign it to this request.
       this.next()
     })
   }
 
-  private abortRequest(url: string) {
-    // Remove callbacks.
-    this.callbacks.delete(url)
-
-    // Remove from the pending list of requests.
-    this.pending = this.pending.filter(it => it !== url)
+  private abortRequest(uid: number) {
+    // The request may still be pending, remove it from the queue.
+    this.pending = this.pending.filter(it => it.uid !== uid)
 
     // Abort and unassign any worker if applicable.
-    const worker = this.getWorkerAssignedTo(url)
+    const worker = this.getWorkerAssignedTo(uid)
     if (worker == null) { return }
 
     worker.postMessage({type: 'abort'})
@@ -74,6 +77,14 @@ export class WorkerTileProvider extends TileProvider {
 
     // This may free up a worker, so we can try to process the next request.
     this.next()
+  }
+
+  private getWorkerAssignedTo(uid: number) {
+    for (const entry of this.assigned.entries()) {
+      if (entry[1].uid === uid) { return entry[0] }
+    }
+
+    return null
   }
 
   // #endregion
@@ -97,14 +108,18 @@ export class WorkerTileProvider extends TileProvider {
 
   private next() {
     if (this.pending.length === 0) { return }
-    
-    for (const url of this.pending) {
+
+    const assigned: number[] = []    
+    for (const request of this.pending) {
       const worker = this.availableWorker()
       if (worker == null) { break }
 
-      this.assignAndStart(worker, url)
-      this.pending = this.pending.filter(it => it[0] !== url)
+      this.assignAndDraw(worker, request)
+      assigned.push(request.uid)
     }
+
+    // Remove the assigned URLs from the pending list.
+    this.pending = this.pending.filter(it => !assigned.includes(it.uid))
   }
 
   private availableWorker() {
@@ -117,11 +132,11 @@ export class WorkerTileProvider extends TileProvider {
     return null
   }
 
-  private assignAndStart(worker: Worker, url: string) {
-    this.assigned.set(worker, url)
+  private assignAndDraw(worker: Worker, request: DrawRequest) {
+    this.assigned.set(worker, request)
     worker.postMessage({
       type:    'draw', 
-      payload: url,
+      payload: request.url,
     },)
   }
 
@@ -133,7 +148,9 @@ export class WorkerTileProvider extends TileProvider {
     const {type, payload} = event.data as {type: string, payload: any}
     switch (type) {
     case 'result':
-      return this.handleWorkerResult(event, callbacks => callbacks[0](payload))
+      return this.handleWorkerResult(event, request => {
+        request.resolve(payload)
+      })
     }
   }
 
@@ -146,53 +163,41 @@ export class WorkerTileProvider extends TileProvider {
   }
 
   private onWorkerMessageError = (event: MessageEvent) => {
-    this.handleWorkerResult(event, callbacks => {
-      callbacks[1](new Error("Worker message serialization error"))
+    this.handleWorkerResult(event, request => {
+      request.reject(new Error("Worker message serialization error"))
     })
   }
 
-  private handleWorkerResult(event: {currentTarget: any}, handle: (callbacks: RequestCallbacks) => void) {
+  private handleWorkerResult(event: {currentTarget: any}, handle: (request: DrawRequest) => void) {
     const worker = event.currentTarget as Worker
     if (!(worker instanceof Worker)) { 
       throw new Error("Invalid worker instance")
     }
 
+    // Find the request. If it had been aborted, its promise would have been rejected already, so we
+    // can silently ignore this.
+    const request = this.assigned.get(worker)
+    if (request == null) { return }
+
     try {
-      const url = this.assigned.get(worker)
-      if (url == null) { return }
-
-      const callbacks = url == null ? null : this.callbacks.get(url)
-      if (callbacks == null) {
-        // Might have been aborted / recycled in the mean time.
-        return
-      } 
-
-      handle([
-        result => {
-          callbacks.forEach(([resolve]) => resolve(result))
-        },
-        error => {
-          callbacks.forEach(([_, reject]) => reject(error))
-        },
-      ])
+      handle(request)
     } finally {
+      request.cleanup()
       this.recycleWorker(worker)
       this.next()
     }
   }
 
   private recycleWorker(worker: Worker) {
-    const url = this.assigned.get(worker)
-    if (url == null) { return }
+    const request = this.assigned.get(worker)
+    if (request == null) { return }
 
     this.assigned.delete(worker)
-    this.callbacks.delete(url)
   }
   
   // #endregion
 
 }
-
 
 export interface WorkerTileProviderOptions extends TileProviderOptions {
   poolSize?: number
@@ -201,4 +206,10 @@ export interface WorkerTileProviderOptions extends TileProviderOptions {
   deinit?: (this: WorkerTileProvider) => Promise<void>
 }
 
-type RequestCallbacks = [(response: GetResourceResponse<any>) => void, (error: Error) => void]
+interface DrawRequest {
+  uid:     number
+  url:     string
+  resolve: (response: GetResourceResponse<any>) => void
+  reject:  (error: Error) => void
+  cleanup: () => void
+}
