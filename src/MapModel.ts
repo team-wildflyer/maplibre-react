@@ -158,7 +158,7 @@ export class MapModel extends Disposable {
     this._loaded = true
 
     this.deriveUnmanagedLayerIDs()
-    this.dericeUnmanagerSourceIDs()
+    this.deriveUnmanagedSourceIDs()
     this.syncFeatureStates()
     this.syncBackingLayers()
     this.syncMarkers()
@@ -412,7 +412,7 @@ export class MapModel extends Disposable {
   // Backing layers are the map-level layers that drive polygons and tile layers.
 
   private unmanagedLayerIDs = new Set<string>()
-  private unmanagerSourceIDs = new Set<string>()
+  private unmanagedSourceIDs = new Set<string>()
 
   private layerTimer = new Timer()
 
@@ -474,11 +474,11 @@ export class MapModel extends Disposable {
     this.unmanagedLayerIDs = new Set(layerIDs)
   }
 
-  private dericeUnmanagerSourceIDs() {
+  private deriveUnmanagedSourceIDs() {
     if (this._map == null) { return }
 
     const sourceIDs = objectKeys(this._map.getStyle()?.sources ?? {}).map(it => it.toString())
-    this.unmanagerSourceIDs = new Set(sourceIDs)
+    this.unmanagedSourceIDs = new Set(sourceIDs)
   }
 
   private backingLayersTimer = new Timer()
@@ -493,6 +493,7 @@ export class MapModel extends Disposable {
    * Synchronizes backing layers for tile layers & polygons.
    * @returns 
    */
+  @queueUntil(({model}) => model.loaded)
   private syncBackingLayers() {
     if (this._map == null) { return }
 
@@ -503,8 +504,9 @@ export class MapModel extends Disposable {
       config.logger.groupCollapsed("SYNC")
 
       // 1. First ensure all sources are there.
-      const currentSourceIDs = (objectKeys(style.sources) as string[]).filter(it => !this.unmanagerSourceIDs.has(it))
+      const currentSourceIDs = (objectKeys(style.sources) as string[]).filter(it => !this.unmanagedSourceIDs.has(it))
       const currentLayerIDs = this._map.style.getLayersOrder().filter(it => !this.unmanagedLayerIDs.has(it))
+
       const remainingSourceIDs = new Set(currentSourceIDs)
       const remainingLayerIDs = new Set(currentLayerIDs)
 
