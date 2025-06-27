@@ -333,12 +333,7 @@ export class MapModel extends Disposable {
   private syncLayersWithTime() {
     if (this._map == null) { return }
 
-    // Only applicable to tile layers.
-    const layerIDs = this._map.style.getLayersOrder().filter(
-      it => this.unmanagedLayerIDs.has(it)
-    )
-
-    for (const id of layerIDs) {
+    for (const id of this._map.style.getLayersOrder()) {
       const backingLayerEntry = this._tileLayerBackingLayers.get(id)
       if (backingLayerEntry == null) { continue }
 
