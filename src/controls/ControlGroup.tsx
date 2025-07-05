@@ -4,13 +4,14 @@ import { useMap } from 'maplibre-react'
 import { ReactNode, useEffect, useMemo } from 'react'
 import React, { createPortal } from 'react-dom'
 import { memo } from 'react-util'
+import { ControlContext } from './ControlContext'
 
-export interface ControlZoneProps {
+export interface ControlGroupProps {
   position:  ControlPosition
   children?: ReactNode
 }
 
-export const ControlZone = memo('ControlZone', (props: ControlZoneProps) => {
+export const ControlGroup = memo('ControlGroup', (props: ControlGroupProps) => {
 
   const {position, children} = props
   const map = useMap()
@@ -25,20 +26,24 @@ export const ControlZone = memo('ControlZone', (props: ControlZoneProps) => {
       onRemove: () => {},
     }
 
-    map.addControl(control, position)
+    map.addRootControl(control, position)
     return () => {
-      map.removeControl(control)
+      map.removeRootControl(control)
     }
   }, [container, map, position, props.position])
 
   function render() {
     return createPortal((
-      <div className={cn('maplibre-react--ControlZone', position)}>
-        {children}
-      </div>
+      <ControlContext.Provider value={childContext}>
+        <div className={cn('maplibre-react--ControlGroup', position)}>
+          {children}
+        </div>
+      </ControlContext.Provider>
     ), container)
   }
 
   return render()
 
 })
+
+const childContext: ControlContext = {root: false}

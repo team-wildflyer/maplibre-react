@@ -1,0 +1,1 @@
+export const ControlNameKey = Symbol.for('maplibre-react.ControlName')

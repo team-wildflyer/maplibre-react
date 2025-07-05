@@ -27,7 +27,7 @@
   overflow: hidden;
 }
 
-.maplibre-react--ControlZone {
+.maplibre-react--ControlGroup {
   display: flex;
   flex-direction: column;
 
@@ -35,10 +35,19 @@
   padding: var(--maplibre-react--ControlGap);
 }
 
-.maplibre-react--ControlZone.top-left, .maplibre-react--ControlZone.bottom-left {
+.maplibre-react--ControlGroup .maplibregl-ctrl,
+.maplibregl-ctrl-top-left .maplibre-react--ControlGroup .maplibregl-ctrl,
+.maplibregl-ctrl-bottom-left .maplibre-react--ControlGroup .maplibregl-ctrl,
+.maplibregl-ctrl-top-right .maplibre-react--ControlGroup .maplibregl-ctrl,
+.maplibregl-ctrl-bottom-right .maplibre-react--ControlGroup .maplibregl-ctrl {
+  float: none;
+  margin: 0;
+}
+
+.maplibre-react--ControlGroup.top-left, .maplibre-react--ControlGroup.bottom-left {
   align-items: flex-start;
 }
 
-.maplibre-react--ControlZone.top-right, .maplibre-react--ControlZone.bottom-right {
+.maplibre-react--ControlGroup.top-right, .maplibre-react--ControlGroup.bottom-right {
   align-items: flex-end;
 }

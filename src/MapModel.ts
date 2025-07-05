@@ -113,6 +113,14 @@ export class MapModel extends Disposable {
       bounds:    this.viewport.bounds(this.size),
 
       ...options,
+
+      attributionControl:        false,
+      forceNoAttributionControl: true,
+      fullscreenControl:         false,
+      geolocateControl:          false,
+      navigationControl:         false,
+      scaleControl:              false,
+      terrainControl:            false,
     })
 
     this._map.showTileBoundaries = options.showTileBoundaries ?? false
@@ -162,7 +170,7 @@ export class MapModel extends Disposable {
     this.syncFeatureStates()
     this.syncBackingLayers()
     this.syncMarkers()
-    this.syncControls()
+    this.syncRootControls()
     this.syncLabelVisibility()
     this.operationQueue.flush()
   }
@@ -891,32 +899,95 @@ export class MapModel extends Disposable {
 
   // #endregion
 
-  // #region Controls
+  // #region Controls & attribution
 
-  private controls: Array<[IControl, ControlPosition]> = []
+  // ROOT CONTROLS
+  // ============
+  // Root controls are the controls that are added to the map directly.
 
-  public addControl(control: IControl, position: ControlPosition) {
-    this.controls.push([control, position])
-    this.syncControls()
+  private rootControls:        Array<[IControl, ControlPosition]> = []
+  private currentRootControls: IControl[] = []
 
-    return this.removeControl.bind(this, control)
+  public addRootControl(control: IControl, position: ControlPosition) {
+    this.rootControls.push([control, position])
+    this.syncRootControls()
+
+    return this.removeRootControl.bind(this, control)
   }
 
-  public removeControl(control: IControl) {
-    const index = this.controls.findIndex(it => it[0] === control)
+  public removeRootControl(control: IControl) {
+    const index = this.rootControls.findIndex(it => it[0] === control)
     if (index < 0) { return }
 
-    this.controls.splice(index, 1)
-    this.syncControls()
+    this.rootControls.splice(index, 1)
+    this.syncRootControls()
   }
 
-  @queueUntil(({map}) => map._controls.length > 0)
-  private syncControls() {
+  @queueUntil(({model}) => model.loaded)
+  private syncRootControls() {
     if (this._map == null) { return }
 
-    for (const [control, position] of this.controls) {
+    for (const control of this.currentRootControls) {
+      this._map.removeControl(control)
+    }
+    for (const [control, position] of this.rootControls) {
       this._map.addControl(control, position)
     }
+
+    this.currentRootControls = this.rootControls.map(it => it[0])
+  }
+
+  // CHILD CONTROLS
+  // =============
+  // Child controls are the maptiler controls that are instantiated as children of the map element. Because
+  // they need to register with the map, but are placed within a react element, we need to handle them separately.
+  
+  private childControls:        Array<[IControl, HTMLElement]> = []
+  private currentChildControls: Array<[IControl, HTMLElement]> = []
+
+  public registerChildControl(control: IControl, parent: HTMLElement) {
+    this.childControls.push([control, parent])
+    this.syncChildControls()
+
+    return this.unregisterControl.bind(this, control)
+  }
+
+  public unregisterControl(control: IControl) {
+    const index = this.childControls.findIndex(it => it[0] === control)
+    if (index < 0) { return }
+
+    this.childControls.splice(index, 1)
+    this.syncChildControls()
+  }
+
+  @queueUntil(({model}) => model.loaded)
+  private syncChildControls() {
+    if (this._map == null) { return }
+
+    const remaining = [...this.currentChildControls]
+    const nextChildControls: Array<[IControl, HTMLElement]> = []
+
+    for (const [control, parent] of this.childControls) {
+      const existingIndex = remaining.findIndex(it => it[0] === control)
+
+      if (existingIndex < 0) {
+        // Add it now.
+        const element = control.onAdd(this._map)
+        parent.appendChild(element)
+        nextChildControls.push([control, element])
+      } else {
+        // Make sure it doesn't get removed.
+        nextChildControls.push(remaining[existingIndex])
+        remaining.splice(existingIndex, 1)
+      }
+    }
+
+    for (const [control, element] of remaining) {
+      control.onRemove(this._map)
+      element.parentElement?.removeChild(element)
+    }
+
+    this.currentChildControls = nextChildControls
   }
 
   // #endregion
@@ -997,8 +1068,17 @@ export type MapOptions = Omit<maptiler_MapOptions,
   | 'bounds'
   | 'center'
   | 'zoom'
+
+  // Controls are handled using child elements in the map.
+  | 'attributionControl'
+  | 'forceNoAttributionControl'
+  | 'fullscreenControl'
+  | 'navigationControl'
+  | 'scaleControl'
+  | 'terrainControl'
 > & {
-  showTileBoundaries?: boolean
+  attributionPosition?: ControlPosition
+  showTileBoundaries?:  boolean
 }
 
 export type FitBBoxOptions = Omit<FitBoundsOptions, 'center' | 'zoom'>
@@ -1015,6 +1095,11 @@ export type BackingLayerOptions = AddBackingLayersOptions
 // #region Internal types
 
 type LayerClickListener = (event: MapMouseEvent, feature?: MapGeoJSONFeature) => void
+type ControlKey =
+  | 'fullscreenControl'
+  | 'navigationControl'
+  | 'scaleControl'
+  | 'terrainControl'
 
 interface FeatureStateDirective {
   feature: FeatureIdentifier
