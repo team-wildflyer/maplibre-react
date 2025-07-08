@@ -102,6 +102,7 @@ export class MapModel extends Disposable {
     }
 
     this._mapStyle = initialStyle
+    this._currentMapStyle = initialStyle
     if (initialViewport != null) {
       this._viewport = Viewport.from(initialViewport)
     }
@@ -290,6 +291,8 @@ export class MapModel extends Disposable {
   private _mapStyle: MapStyleSpecification = config.defaultStyle
   public get mapStyle() { return this._mapStyle }
 
+  private _currentMapStyle: MapStyleSpecification | null = null
+
   public setMapStyle(mapStyle: MapStyleSpecification) {
     if (mapStyle === this._mapStyle) { return }
     this._mapStyle = mapStyle
@@ -300,8 +303,8 @@ export class MapModel extends Disposable {
   @queueUntil(({model}) => model.loaded)
   private syncMapStyle() {
     if (this._map == null) { return }
-    if (this.isCurrentStyle(this._mapStyle)) { return }
-
+    if (this._mapStyle === this._currentMapStyle) { return }
+    
     this._map.once('styledata', () => {
       this.deriveUnmanagedLayerIDs()
       this.syncBackingLayers()
@@ -310,18 +313,7 @@ export class MapModel extends Disposable {
     })
 
     this._map.setStyle(this.mapStyle)
-  }
-
-  private isCurrentStyle(style: MapStyleSpecification) {
-    if (this._map == null) { return false }
-    if (this._map.getStyle() == null) { return false }
-    if (this._map.getStyle() === style) { return true }
-
-    if ('id' in this._map.style.stylesheet && this._map.style.stylesheet.id === style) {
-      return true
-    }
-
-    return false
+    this._currentMapStyle = this._mapStyle
   }
 
   // #endregion
