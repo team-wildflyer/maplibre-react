@@ -34,6 +34,7 @@ import {
   FitBoundsOptionsCallback,
   FitBoundsReason,
   LayerGroupOrdering,
+  MapBoxDrawEventType,
   MapStatus,
   MapStyleSpecification,
   PolygonConfig,
@@ -786,7 +787,7 @@ export class MapModel extends Disposable {
 
   public on<T extends keyof MapLayerEventType>(type: T, layer: string, listener: (ev: MapLayerEventType[T]) => void): () => void
   public on<T extends keyof MapEventType>(type: T, listener: (ev: MapEventType[T]) => void): () => void
-
+  public on<T extends keyof MapBoxDrawEventType>(type: T, listener: (ev: MapBoxDrawEventType[T]) => void): () => void
   @queueUntil(({model}) => model.idle)
   public on(...args: any[]) {
     const map = this._map
@@ -797,6 +798,20 @@ export class MapModel extends Disposable {
       map?.off.apply(map, args as any)
     }
   }
+
+  // Heb je deze expres nooit gemaakt?
+  public off<T extends keyof MapLayerEventType>(type: T, layer: string, listener: (ev: MapLayerEventType[T]) => void): void
+  public off<T extends keyof MapEventType>(type: T, listener: (ev: MapEventType[T]) => void):  void
+  public off<T extends keyof MapBoxDrawEventType>(type: T, listener: (ev: MapBoxDrawEventType[T]) => void): void
+  @queueUntil(({model}) => model.idle)
+  public off(...args: any[]) {
+    const map = this._map
+    if (map == null) { return }
+
+    map.off.apply(map, args as any)
+  }
+
+
 
   private backingLayerClickListeners = new Map<string, LayerClickListener>()
 
@@ -1056,6 +1071,14 @@ export class MapModel extends Disposable {
     }
   }
 
+  // #endregion
+
+
+  // #region Draw control helpers
+
+
+  public onClickDrawControl() {
+  }
   // #endregion
 
 }
