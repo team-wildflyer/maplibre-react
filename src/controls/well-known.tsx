@@ -7,7 +7,7 @@ import {
   ScaleControl as ml_ScaleControl,
   ScaleControlOptions,
   TerrainControl as ml_TerrainControl,
-} from 'maplibre-gl'
+} from '@maptiler/sdk'
 import React, { ComponentType, useEffect, useMemo, useRef } from 'react'
 import { memo } from 'react-util'
 import { Constructor } from 'ytil'

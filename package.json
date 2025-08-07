@@ -16,8 +16,8 @@
   },
   "dependencies": {
     "@mapbox/mapbox-gl-draw": "1.4.3",
-    "@maptiler/sdk": "^2.1.0",
-    "@maptiler/weather": "^2.0.1",
+    "@maptiler/sdk": "^3.6.1",
+    "@maptiler/weather": "^3.1.1",
     "classnames": "^2.5.1",
     "lodash": "^4.17.21",
     "react-timer": "workspace:^",

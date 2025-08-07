@@ -34,6 +34,7 @@ import {
   FitBoundsOptionsCallback,
   FitBoundsReason,
   LayerGroupOrdering,
+  LineStyle,
   MapBoxDrawEventType,
   MapStatus,
   MapStyleSpecification,
@@ -161,10 +162,26 @@ export class MapModel extends Disposable {
     this._map = null
   }
 
+  private fixDrawStuff() {
+    if (this._map == null) { return }
+    if (this._map.getCanvas() == null) { return }
+
+
+    this._map.getCanvas().className = 'mapboxgl-canvas maplibregl-canvas blabla'
+    this._map.getContainer().classList.add('mapboxgl-map')
+    const canvasContainer = this._map.getCanvasContainer()
+    canvasContainer.classList.add('mapboxgl-canvas-container')
+    if (canvasContainer.classList.contains('maplibregl-interactive')) {
+      canvasContainer.classList.add('mapboxgl-interactive')
+    }
+  }
+
   private onLoad() {
     if (this.loaded) { return }
 
     this._loaded = true
+
+    
 
     this.deriveUnmanagedLayerIDs()
     this.deriveUnmanagedSourceIDs()
@@ -173,6 +190,7 @@ export class MapModel extends Disposable {
     this.syncMarkers()
     this.syncRootControls()
     this.syncLabelVisibility()
+    this.fixDrawStuff()
     this.operationQueue.flush()
   }
 
@@ -402,9 +420,12 @@ export class MapModel extends Disposable {
       id:     `${id}:outline`,
       source: id,
       type:   'line',
+      layout: {'line-cap': 'round', 'line-join': 'round'},
       paint:  {
-        'line-color':   polygon.color,
-        'line-opacity': polygon.lineOpacity,
+        'line-color':     polygon.lineColor ?? polygon.color,
+        'line-opacity':   polygon.lineOpacity ?? 1,
+        'line-width':     polygon.lineWidth ?? 1,
+        'line-dasharray': polygon.lineStyle === LineStyle.Dashed ? [0.2, 2] : [1, 0],
       },
     }
   }
@@ -527,6 +548,21 @@ export class MapModel extends Disposable {
     } catch (error) {
       config.logger.groupEnd()
       config.logger.error(error)
+    }
+  }
+
+  public logLayers() {
+    if (this._map == null) { return }
+
+    console.log('LAYERS')
+    const layerIDs = this._map.getLayersOrder()
+    console.log('layerIDs:', layerIDs.join(', '))
+
+    for (const id of layerIDs) {
+      const layer = this._map.getLayer(id)
+      if (layer == null) { continue }
+
+      console.log('  ', id, layer.type, layer.source ?? '')
     }
   }
 
@@ -681,7 +717,7 @@ export class MapModel extends Disposable {
 
     const layer = this._map.style.getLayer(prefixedID)
     if (layer == null) { return}
-
+    console.log('add event listeners for layer:', layer.id)
     this._map.on('click', prefixedID, this.onBackingLayerClick)
     this._map.on('mouseenter', prefixedID, this.showPointerCursor)
     this._map.on('mouseleave', prefixedID, this.showDefaultCursor)
@@ -811,8 +847,6 @@ export class MapModel extends Disposable {
     map.off.apply(map, args as any)
   }
 
-
-
   private backingLayerClickListeners = new Map<string, LayerClickListener>()
 
   /**
@@ -822,7 +856,12 @@ export class MapModel extends Disposable {
    * @param listener The click listeren.
    */
   public addPolygonClickListener(polygonID: string, listener: LayerClickListener) {
-    return this.addBackingLayerClickListener(polygonID, listener)
+    const removeFill = this.addBackingLayerClickListener(`${polygonID}:fill`, listener)
+
+    // Return a disposer that removes both bindings.
+    return () => {
+      removeFill?.()
+    }
   }
 
   /**
@@ -839,7 +878,6 @@ export class MapModel extends Disposable {
     this.tearDownBackingLayerInteraction(prefixedID)
     this.backingLayerClickListeners.set(prefixedID, listener)
     this.setUpBackingLayerInteraction(prefixedID)
-
     return () => {
       this.removeBackingLayerClickListener(prefixedID)
     }
@@ -1071,14 +1109,6 @@ export class MapModel extends Disposable {
     }
   }
 
-  // #endregion
-
-
-  // #region Draw control helpers
-
-
-  public onClickDrawControl() {
-  }
   // #endregion
 
 }

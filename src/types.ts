@@ -24,11 +24,19 @@ export interface LayerOptions {
   showInMenu?: boolean
 }
 
+export enum LineStyle {
+  Solid = 'solid',
+  Dashed = 'dashed',
+}
+
 export interface PolygonConfig {
   geometry:     Geometry
   color?:       string
   fillOpacity?: number
+  lineColor?:   string
   lineOpacity?: number
+  lineStyle?:   LineStyle
+  lineWidth?:   number
 }
 
 export enum MapStatus {
