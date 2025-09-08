@@ -11,6 +11,7 @@ export * from './controls'
 export * from './expressions'
 export * from './layers'
 export * from './tiles'
+export * from './symbols'
 export * from './types'
 export * from './util'
 // /index

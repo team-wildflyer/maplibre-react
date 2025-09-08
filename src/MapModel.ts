@@ -34,6 +34,8 @@ import {
   FitBoundsOptionsCallback,
   FitBoundsReason,
   LayerGroupOrdering,
+  LineStyle,
+  MapBoxDrawEventType,
   MapStatus,
   MapStyleSpecification,
   PolygonConfig,
@@ -161,10 +163,26 @@ export class MapModel extends Disposable {
     this._map = null
   }
 
+  private fixDrawStuff() {
+    if (this._map == null) { return }
+    if (this._map.getCanvas() == null) { return }
+
+
+    this._map.getCanvas().className = 'mapboxgl-canvas maplibregl-canvas blabla'
+    this._map.getContainer().classList.add('mapboxgl-map')
+    const canvasContainer = this._map.getCanvasContainer()
+    canvasContainer.classList.add('mapboxgl-canvas-container')
+    if (canvasContainer.classList.contains('maplibregl-interactive')) {
+      canvasContainer.classList.add('mapboxgl-interactive')
+    }
+  }
+
   private onLoad() {
     if (this.loaded) { return }
 
     this._loaded = true
+
+    
 
     this.deriveUnmanagedLayerIDs()
     this.deriveUnmanagedSourceIDs()
@@ -173,6 +191,7 @@ export class MapModel extends Disposable {
     this.syncMarkers()
     this.syncRootControls()
     this.syncLabelVisibility()
+    this.fixDrawStuff()
     this.operationQueue.flush()
   }
 
@@ -368,6 +387,7 @@ export class MapModel extends Disposable {
     return {
       type: 'geojson',
       data: {
+        id:         0,
         type:       'Feature',
         geometry:   polygon.geometry.geojson,
         properties: {},
@@ -376,13 +396,16 @@ export class MapModel extends Disposable {
   }
 
   private buildPolygonFillLayer(id: string, polygon: PolygonConfig): BackingLayer {
+    const fillOpacity = polygon.fillOpacity ?? 0.6
+    const fillHoverOpacity = polygon.hover ? fillOpacity + 0.1 : fillOpacity
+
     return {
       id:     `${id}:fill`,
       source: id,
       type:   'fill',
       paint:  {
         'fill-color':     polygon.color,
-        'fill-opacity':   polygon.fillOpacity,
+        'fill-opacity':   polygon.hover ? ['case', ['boolean', ['feature-state', 'hover'], false], fillHoverOpacity, fillOpacity] : fillOpacity,
         'fill-antialias': true,
       },
     }
@@ -393,9 +416,12 @@ export class MapModel extends Disposable {
       id:     `${id}:outline`,
       source: id,
       type:   'line',
+      layout: {'line-cap': 'round', 'line-join': 'round'},
       paint:  {
-        'line-color':   polygon.color,
-        'line-opacity': polygon.lineOpacity,
+        'line-color':     polygon.lineColor ?? polygon.color,
+        'line-opacity':   polygon.lineOpacity ?? 1,
+        'line-width':     polygon.lineWidth ?? 1,
+        'line-dasharray': polygon.lineStyle === LineStyle.Dashed ? [0.2, 2] : [1, 0],
       },
     }
   }
@@ -521,6 +547,17 @@ export class MapModel extends Disposable {
     }
   }
 
+  public logLayers() {
+    if (this._map == null) { return }
+
+    const layerIDs = this._map.getLayersOrder()
+
+    for (const id of layerIDs) {
+      const layer = this._map.getLayer(id)
+      if (layer == null) { continue }
+    }
+  }
+
   private ensureTileLayerSources(remainingSourceIDs: Set<string>) {
     config.logger.debug('TILE SOURCES')
     config.logger.debug('nextSourceIDs:', Array.from(this._tileLayerSources.keys()).join(', '))
@@ -555,24 +592,19 @@ export class MapModel extends Disposable {
   }
 
   private ensurePolygonSources(remainingSourceIDs: Set<string>) {
-    config.logger.debug('POLYGON SOURCES')
-    config.logger.debug('polygonIDs:', Array.from(this.polygons.keys()).join(', '))
-
     for (const [id, [polygon]] of this.polygons) {
       if (remainingSourceIDs.has(id)) {
         remainingSourceIDs.delete(id)
       } else {
         const source = this.buildPolySource(polygon)
-
-        config.logger.debug('  ADD', id)
         this._map?.addSource(id, source)
       }
     }
   }
 
   private ensurePolygonBackingLayers(remainingLayerIDs: Set<string>) {
-    config.logger.debug('POLYGON LAYERS')
-    config.logger.debug('polygonIDs:', Array.from(this.polygons.keys()).join(', '))
+    config.logger.info('POLYGON LAYERS')
+    config.logger.info('polygonIDs:', Array.from(this.polygons.keys()).join(', '))
 
     for (const [id, [polygon, options]] of this.polygons) {
       const fillLayer = this.buildPolygonFillLayer(id, polygon)
@@ -672,10 +704,10 @@ export class MapModel extends Disposable {
 
     const layer = this._map.style.getLayer(prefixedID)
     if (layer == null) { return}
-
+    config.logger.info('add event listeners for layer:', layer.id)
     this._map.on('click', prefixedID, this.onBackingLayerClick)
-    this._map.on('mouseenter', prefixedID, this.showPointerCursor)
-    this._map.on('mouseleave', prefixedID, this.showDefaultCursor)
+    this._map.on('mouseenter', prefixedID, this.onBackingLayerMouseMove)
+    this._map.on('mouseleave', prefixedID, this.onBackingLayerMouseLeave)
   }
 
   private tearDownBackingLayerInteraction(prefixedID: string) {
@@ -683,8 +715,8 @@ export class MapModel extends Disposable {
     if (this._map.style == null) { return }
 
     this._map.off('click', prefixedID, this.onBackingLayerClick)
-    this._map.off('mouseenter', prefixedID, this.showPointerCursor)
-    this._map.off('mouseleave', prefixedID, this.showDefaultCursor)
+    this._map.off('mouseenter', prefixedID, this.onBackingLayerMouseMove)
+    this._map.off('mouseleave', prefixedID, this.onBackingLayerMouseLeave)
   }
 
   private previousClickedFeatureKey: string | null = null
@@ -718,6 +750,45 @@ export class MapModel extends Disposable {
   private showDefaultCursor = () => {
     if (this._map == null) { return }
     this._map.getCanvas().style.cursor = ''
+  }
+
+  private getFeatureIdentifierFromEvent(ev: MapLayerMouseEvent): FeatureIdentifier | null {
+    const f = ev.features?.[0]
+    if (!f) return null
+    // For GeoJSON sources, sourceLayer is undefined; id must be set on the Feature.
+    if (f.source == null || f.id == null) return null
+    return (f.sourceLayer != null)
+      ? {source: f.source as string, sourceLayer: f.sourceLayer as string, id: f.id as number | string}
+      : {source: f.source as string, id: f.id as number | string}
+  }
+
+  private lastHoverFeature: FeatureIdentifier | null = null
+
+  private onBackingLayerMouseMove = (event: MapLayerMouseEvent) => {
+    if (this._map == null) { throw new Error('Map is not initialized') }
+
+    const identifier = this.getFeatureIdentifierFromEvent(event)
+    if (!identifier) return
+
+    if (this.lastHoverFeature != null && !objectEquals(this.lastHoverFeature, identifier)) {
+      // Clear hover on the previously hovered feature
+      this.setFeatureState(this.lastHoverFeature, {hover: false})
+    }
+
+    this.showPointerCursor()
+    this.setFeatureState(identifier, {hover: true})
+    this.lastHoverFeature = identifier
+  }
+
+  private onBackingLayerMouseLeave = (event: MapLayerMouseEvent) => {
+    if (this._map == null) { return }
+
+    if (!this.lastHoverFeature) return
+
+    // Clear hover on the feature when leaving the layer entirely
+    this.setFeatureState(this.lastHoverFeature, {hover: false})
+    this.showDefaultCursor()
+    this.lastHoverFeature = null
   }
 
   // #endregion
@@ -778,7 +849,7 @@ export class MapModel extends Disposable {
 
   public on<T extends keyof MapLayerEventType>(type: T, layer: string, listener: (ev: MapLayerEventType[T]) => void): () => void
   public on<T extends keyof MapEventType>(type: T, listener: (ev: MapEventType[T]) => void): () => void
-
+  public on<T extends keyof MapBoxDrawEventType>(type: T, listener: (ev: MapBoxDrawEventType[T]) => void): () => void
   @queueUntil(({model}) => model.idle)
   public on(...args: any[]) {
     const map = this._map
@@ -790,6 +861,18 @@ export class MapModel extends Disposable {
     }
   }
 
+  // Heb je deze expres nooit gemaakt @joost? (by @daan)
+  public off<T extends keyof MapLayerEventType>(type: T, layer: string, listener: (ev: MapLayerEventType[T]) => void): void
+  public off<T extends keyof MapEventType>(type: T, listener: (ev: MapEventType[T]) => void):  void
+  public off<T extends keyof MapBoxDrawEventType>(type: T, listener: (ev: MapBoxDrawEventType[T]) => void): void
+  @queueUntil(({model}) => model.idle)
+  public off(...args: any[]) {
+    const map = this._map
+    if (map == null) { return }
+
+    map.off.apply(map, args as any)
+  }
+
   private backingLayerClickListeners = new Map<string, LayerClickListener>()
 
   /**
@@ -799,7 +882,12 @@ export class MapModel extends Disposable {
    * @param listener The click listeren.
    */
   public addPolygonClickListener(polygonID: string, listener: LayerClickListener) {
-    return this.addBackingLayerClickListener(polygonID, listener)
+    const removeFill = this.addBackingLayerClickListener(`${polygonID}:fill`, listener)
+
+    // Return a disposer that removes both bindings.
+    return () => {
+      removeFill?.()
+    }
   }
 
   /**
@@ -816,7 +904,6 @@ export class MapModel extends Disposable {
     this.tearDownBackingLayerInteraction(prefixedID)
     this.backingLayerClickListeners.set(prefixedID, listener)
     this.setUpBackingLayerInteraction(prefixedID)
-
     return () => {
       this.removeBackingLayerClickListener(prefixedID)
     }
@@ -996,6 +1083,7 @@ export class MapModel extends Disposable {
     const key = this.featureKey(feature)
 
     const existing = this.featureStateDirectives.get(key)
+
     if (existing != null) {
       existing.state = isFunction(state) ? state(existing.state as T) : {...existing.state, ...state}
     } else {

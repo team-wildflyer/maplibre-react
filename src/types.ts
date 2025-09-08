@@ -8,6 +8,7 @@ import {
 } from '@maptiler/sdk'
 import { BBox, Geometry } from 'geojson-classes'
 import { DateTime } from 'luxon'
+import { DrawCombineEvent, DrawCreateEvent, DrawDeleteEvent, DrawModeChangeEvent, DrawRenderEvent, DrawSelectionChangeEvent, DrawUncombineEvent, DrawUpdateEvent } from '@mapbox/mapbox-gl-draw'
 
 export type MapStyleSpecification = ReferenceMapStyle | MapStyleVariant | StyleSpecification | string
 
@@ -23,11 +24,23 @@ export interface LayerOptions {
   showInMenu?: boolean
 }
 
+export enum LineStyle {
+  Solid = 'solid',
+  Dashed = 'dashed',
+}
+
 export interface PolygonConfig {
-  geometry:     Geometry
-  color?:       string
+  geometry: Geometry
+  color?:   string
+  
   fillOpacity?: number
+
+  lineColor?:   string
   lineOpacity?: number
+  lineStyle?:   LineStyle
+  lineWidth?:   number
+  
+  hover?: boolean
 }
 
 export enum MapStatus {
@@ -59,3 +72,15 @@ export type LayerGroupOrderingSpecifier =
   | '$background'
   /** The layer group is above or below layer with explicit ID. */
   | string
+
+export interface MapBoxDrawEventType {
+  'draw.create':          DrawCreateEvent;
+  'draw.update':          DrawUpdateEvent;
+  'draw.delete':          DrawDeleteEvent;
+  'draw.selectionchange': DrawSelectionChangeEvent;
+  'draw.modechange':      DrawModeChangeEvent;
+  'draw.render':          DrawRenderEvent;
+  'draw.combine':         DrawCombineEvent;
+  'draw.uncombine':       DrawUncombineEvent;
+}
+  
