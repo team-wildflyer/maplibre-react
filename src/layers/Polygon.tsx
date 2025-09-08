@@ -9,9 +9,10 @@ interface PolygonProps {
   id:       string
   geometry: Geometry
 
-  color?:       string
+  color?:    string
+  selected?: boolean
+
   fillOpacity?: number
-  selected?:    boolean
 
   lineColor?:   string
   lineOpacity?: number
@@ -20,6 +21,8 @@ interface PolygonProps {
 
   group?:   string
   onClick?: () => void
+
+  hover?: boolean
 }
 
 export const Polygon = memo('Polygon', (props: PolygonProps) => {
@@ -29,6 +32,7 @@ export const Polygon = memo('Polygon', (props: PolygonProps) => {
     geometry,
     color: props_color = 'primary',
     selected,
+
     fillOpacity = selected ? 0.9 : 0.6,
 
     lineColor: props_line_color = 'primary',
@@ -38,6 +42,8 @@ export const Polygon = memo('Polygon', (props: PolygonProps) => {
     
     group,
     onClick,
+
+    hover = false,
   } = props
 
   const {addPolygon, addPolygonClickListener} = useMap()
@@ -65,15 +71,23 @@ export const Polygon = memo('Polygon', (props: PolygonProps) => {
 
   useEffect(() => {
     if (onClick == null) { return }
-    console.log('should add listeners for polygon click', id)
     return addPolygonClickListener(id, onClick)
   }, [addPolygonClickListener, id, onClick])
 
   useEffect(() => {
-    return addPolygon(id, {geometry, color, lineOpacity, fillOpacity, lineStyle, lineWidth, lineColor}, {
+    return addPolygon(id, {
+      geometry, 
+      color,
+      lineOpacity,
+      fillOpacity,
+      lineStyle,
+      lineWidth,
+      lineColor,
+      hover,
+    }, {
       group,
     })
-  }, [addPolygon, color, fillOpacity, geometry, id, group, lineOpacity, lineStyle, lineWidth, lineColor, onClick])
+  }, [addPolygon, color, fillOpacity, geometry, id, group, lineOpacity, lineStyle, lineWidth, lineColor, onClick, hover])
 
   return null
 

@@ -39,7 +39,7 @@ export const Marker = memo('Marker', (props: MarkerProps) => {
   const optionsRef = useRef(options)
 
   useEffect(() => {
-    addMarker(
+    const cleanup = addMarker(
       id,
       location,
       container, {
@@ -48,6 +48,8 @@ export const Marker = memo('Marker', (props: MarkerProps) => {
       },
       markAdded
     )
+
+    return cleanup
   }, [addMarker, id, location, markAdded, container, anchor])
 
   return createPortal((

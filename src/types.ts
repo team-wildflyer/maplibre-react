@@ -30,13 +30,17 @@ export enum LineStyle {
 }
 
 export interface PolygonConfig {
-  geometry:     Geometry
-  color?:       string
+  geometry: Geometry
+  color?:   string
+  
   fillOpacity?: number
+
   lineColor?:   string
   lineOpacity?: number
   lineStyle?:   LineStyle
   lineWidth?:   number
+  
+  hover?: boolean
 }
 
 export enum MapStatus {
