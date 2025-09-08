@@ -42,7 +42,7 @@ export const TileLayerFeatureState = memo('TileLayerFeatureState', (props: TileL
   const isToggle = 'toggle' in props
   
   const map = useMap()
-  const prevIDRef = useRef<string | number | null>()
+  const prevIDRef = useRef<string | number | null>(null)
 
   useEffect(() => {
     if (source == null) { return }

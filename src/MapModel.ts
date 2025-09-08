@@ -780,7 +780,7 @@ export class MapModel extends Disposable {
     this.lastHoverFeature = identifier
   }
 
-  private onBackingLayerMouseLeave = (event: MapLayerMouseEvent) => {
+  private onBackingLayerMouseLeave = () => {
     if (this._map == null) { return }
 
     if (!this.lastHoverFeature) return
