@@ -1,4 +1,4 @@
-import { LineLayerSpecification } from '@maptiler/sdk'
+import { CircleLayerSpecification } from '@maptiler/sdk'
 import { useEffect, useRef } from 'react'
 import { memo } from 'react-util'
 import { usePrevious, useWithStableDeps } from 'react-util/hooks'
@@ -7,9 +7,9 @@ import { useLayerGroup } from './LayerGroupContext'
 import { useTileLayer } from './TileLayerContext'
 import { TileLayerCommonProps } from './types'
 
-export type TileLayerLineProps = TileLayerCommonProps & Omit<LineLayerSpecification, 'id' | 'type' | 'source' | 'source-layer'>
+export type TileLayerCircleProps = TileLayerCommonProps & Omit<CircleLayerSpecification, 'id' | 'type' | 'source' | 'source-layer'>
 
-export const TileLayerLine = memo('TileLayerLine', (props: TileLayerLineProps) => {
+export const TileLayerCircle = memo('TileLayerCircle', (props: TileLayerCircleProps) => {
 
   const {
     source,
@@ -24,7 +24,7 @@ export const TileLayerLine = memo('TileLayerLine', (props: TileLayerLineProps) =
 
   const {ensureBackingLayer, updateBackingLayerPaint, addTileBackingLayerClickListener} = useMap()
 
-  const id = `${layer.name}:line`
+  const id = `${layer.name}:circle`
   const initialPaintRef = useRef(paint)
   const prevPaint = usePrevious(paint)
 
@@ -37,7 +37,7 @@ export const TileLayerLine = memo('TileLayerLine', (props: TileLayerLineProps) =
   useEffect(() => {
     return ensureBackingLayer(layer.name, {
       id:             id,
-      type:           'line',
+      type:           'circle',
       source:         source ?? layer.name,
       'source-layer': sourceLayer ?? layer.name,
       paint:          initialPaintRef.current, 

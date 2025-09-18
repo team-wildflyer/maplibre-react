@@ -202,7 +202,7 @@ export class MapModel extends Disposable {
     this.operationQueue.flush()
   }
 
-  private onSourceData() {
+  private onSourceData(event: MapLibreEvent & {sourceId: string}) {
     this.syncFeatureStates()
   }
 
@@ -1175,11 +1175,6 @@ export type BackingLayerOptions = AddBackingLayersOptions
 // #region Internal types
 
 type LayerClickListener = (event: MapMouseEvent, feature?: MapGeoJSONFeature) => void
-type ControlKey =
-  | 'fullscreenControl'
-  | 'navigationControl'
-  | 'scaleControl'
-  | 'terrainControl'
 
 interface FeatureStateDirective {
   feature: FeatureIdentifier

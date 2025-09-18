@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
 import { memo } from 'react-util'
+import { TileLayerCircle } from './TileLayerCircle'
 import { TileLayerContext } from './TileLayerContext'
 import { TileLayerCustom } from './TileLayerCustom'
 import { TileLayerFeatureState } from './TileLayerFeatureState'
@@ -36,6 +37,7 @@ Object.assign(TileLayer$, {
   Source:       TileLayerSource,
   Fill:         TileLayerFill,
   Line:         TileLayerLine,
+  Circle:       TileLayerCircle,
   Raster:       TileLayerRaster,
   Custom:       TileLayerCustom,
   FeatureState: TileLayerFeatureState,
@@ -45,6 +47,7 @@ export const TileLayer = TileLayer$ as typeof TileLayer$ & {
   Source:       typeof TileLayerSource
   Fill:         typeof TileLayerFill
   Line:         typeof TileLayerLine
+  Circle:       typeof TileLayerCircle
   Raster:       typeof TileLayerRaster
   Custom:       typeof TileLayerCustom
   FeatureState: typeof TileLayerFeatureState

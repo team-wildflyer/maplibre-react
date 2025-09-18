@@ -7,10 +7,11 @@ import { CamelizeKeys, sparse } from 'ytil'
 import { useMap } from '../MapContext'
 import { useLayerGroup } from './LayerGroupContext'
 import { useTileLayer } from './TileLayerContext'
+import { TileLayerCommonProps } from './types'
 
 type TileLayerRasterBaseProps = CamelizeKeys<Omit<RasterLayerSpecification, 'id' | 'type' | 'source' | 'source-layer'>>
 
-export interface TileLayerRasterProps extends TileLayerRasterBaseProps {
+export interface TileLayerRasterProps extends TileLayerCommonProps, TileLayerRasterBaseProps {
   name?: string
 
   source?:      string

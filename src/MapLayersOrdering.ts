@@ -35,8 +35,7 @@ export class MapLayersOrdering {
     return this.unassigned
   }
 
-  public addLayer(layer: BackingLayer, options: AddLayerOptions = {}) {
-    
+  public addLayer(layer: BackingLayer, options: AddLayerOptions = {}) {    
     const group = this.getGroup(options.group ?? '$unassigned')
     if (group == null) {
       throw new Error(`Layer group "${options.group}" not found`)
