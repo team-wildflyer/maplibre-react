@@ -202,7 +202,7 @@ export class MapModel extends Disposable {
     this.operationQueue.flush()
   }
 
-  private onSourceData(event: MapLibreEvent & {sourceId: string}) {
+  private onSourceData() {
     this.syncFeatureStates()
   }
 
