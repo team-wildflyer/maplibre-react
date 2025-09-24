@@ -6,7 +6,7 @@
   pointer-events: auto;
 
   --maplibre-react--ControlPadding: 10px;
-  --maplibre-react--ControlGap: 10px;
+  --maplibre-react--ControlGap: 8px;
   --maplibre-react--ControlSize: 28px;
 }
 
