@@ -3,6 +3,7 @@ import cn from 'classnames'
 import { useMap } from 'maplibre-react'
 import React, { CSSProperties, Ref, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { useSize } from 'react-measure'
+import { useTimer } from 'react-timer'
 import { forwardRef } from 'react-util'
 import { Viewport } from './Viewport'
 import config from './config'
@@ -76,17 +77,24 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
 
   // #region Initialization
 
+  const initTimer = useTimer()
+
   useEffect(() => {
     if (wrapper == null) { return }
 
-    map.init(
-      wrapper,
-      mapStyleRef.current,
-      defaultViewportRef.current,
-      options
-    )
+    // This prevents a possible "Style not loaded" error when loading the map. This is fully internal,
+    // and in some async code, preventing me from catching the error synchronously. I hate to resort
+    // to something like this, but MapLibre is sometimes just a bit shaky.
+    initTimer.setTimeout(() => {
+      map.init(
+        wrapper,
+        mapStyleRef.current,
+        defaultViewportRef.current,
+        options
+      )
+    }, 0)
     return () => { map.deinit() }
-  }, [map, options, wrapper])
+  }, [initTimer, map, options, wrapper])
 
   // #endregion
 
