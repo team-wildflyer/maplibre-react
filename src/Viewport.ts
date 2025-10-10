@@ -58,8 +58,8 @@ export class Viewport {
     return new BBox([lonMin, latMin, lonMax, latMax])
   }
 
-  public bounds(mapSize: Size) {
-    return new LngLatBounds(this.bbox(mapSize).bbox)
+  public bounds(mapSize: Size): LngLatBounds {
+    return new LngLatBounds(this.bbox(mapSize).geojson)
   }
 
   public equals(other: Viewport) {

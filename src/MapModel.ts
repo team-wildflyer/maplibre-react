@@ -279,7 +279,7 @@ export class MapModel extends Disposable {
     const options = this.getFitBoundsOptions(reason, currentBBox, nextBBox)
     if (options === false) { return }
 
-    this._map?.fitBounds(nextBBox.bbox, options === true ? {} : options)
+    this._map?.fitBounds(nextBBox.geojson, options === true ? {} : options)
     this.userMoved = false
   }
 
