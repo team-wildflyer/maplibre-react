@@ -1,9 +1,9 @@
 import { ControlPosition, IControl } from '@maptiler/sdk'
 import cn from 'classnames'
-import { useMap } from 'maplibre-react'
-import { ReactNode, useEffect, useMemo } from 'react'
-import React, { createPortal } from 'react-dom'
+import React, { ReactNode, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { memo } from 'react-util'
+import { useMap } from '../MapContext'
 import { ControlContext } from './ControlContext'
 
 export interface ControlGroupProps {

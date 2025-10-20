@@ -2,12 +2,26 @@
   "name": "maplibre-react",
   "version": "0.0.1",
   "description": "React wrapper around MapLibre GL JS",
-  "main": "./src/index.ts",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "default": "./dist/cjs/index.js"
+    }
   },
   "scripts": {
-    "lint": "eslint src --ext .ts,.tsx",
+    "build": "npm run clean && npm run build:tsc",
+    "build:tsc": "npm run build:tsc:esm && npm run build:tsc:cjs",
+    "build:tsc:esm": "tsc -p tsconfig.prod.json --module esnext --outDir dist/esm --declarationDir dist/types",
+    "build:tsc:cjs": "tsc -p tsconfig.prod.json --module commonjs --outDir dist/cjs --declaration false --declarationMap false",
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "lint": "eslint src --ext ts,tsx",
     "check": "tsc -p . --noEmit",
     "test": "NODE_ENV=test jest"
   },
@@ -18,16 +32,26 @@
     "@mapbox/mapbox-gl-draw": "1.4.3",
     "@maptiler/sdk": "^3.7.0",
     "@maptiler/weather": "^3.1.1",
+    "@mui/joy": "^5.0.0-beta.52",
     "classnames": "^2.5.1",
+    "geojson": "^0.5.0",
+    "geojson-classes": "workspace:*",
     "lodash": "^4.17.21",
+    "mapbox-gl": "3.14.0",
+    "react-dom": "^19.1.1",
+    "react-measure": "workspace:*",
     "react-timer": "workspace:*",
     "react-util": "workspace:*",
     "ytil": "workspace:*"
   },
   "devDependencies": {
+    "@types/geojson": "^7946.0.16",
+    "@types/lodash": "^4.17.20",
     "@types/mapbox__mapbox-gl-draw": "^1.4.9",
-    "@types/react": "^19.1",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.2.2",
     "jest": "^29.7.0",
+    "rimraf": "^6.0.1",
     "typescript": "^5.9"
   }
 }
