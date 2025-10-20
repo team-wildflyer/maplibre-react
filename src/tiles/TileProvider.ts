@@ -1,7 +1,6 @@
 import { addProtocol, removeProtocol, RequestParameters } from '@maptiler/sdk'
 import { Disposable } from 'react-util'
 import { bindMethods } from 'ytil'
-import { TileCache } from './TileCache'
 
 export abstract class TileProvider extends Disposable {
 
@@ -11,13 +10,7 @@ export abstract class TileProvider extends Disposable {
   ) {
     super()
     bindMethods(this)
-
-    if (this.options.cache !== false) {
-      this.cache = new TileCache(1024 * 1024 * 10)
-    }
   }
-
-  private cache: TileCache | null = null
 
   public install() {
     addProtocol(this.protocol, this.handleLoad)
@@ -29,24 +22,18 @@ export abstract class TileProvider extends Disposable {
   }
 
   private async handleLoad(params: RequestParameters, abort: AbortController): Promise<any> {
-    const cached = this.cache?.fetch(params)
-    if (cached != null) {
-      return {data: cached}
+    const {buffer: data, url} = await this.load(params, abort)
+    if (url !== params.url) {
+      console.warn(`Loaded URL does not match requested URL: requested=${params.url}, loaded=${url}`)
+      throw new Error("Loaded URL does not match requested URL")
     }
-
-    const data = await this.load(params, abort)
-    if (data != null) {
-      this.cache?.store(params, data)
+    if (abort.signal.aborted) {
+      throw new Error("Request aborted")
     }
-
-    return {
-      data,
-      cacheControl: 'no-cache',
-      expires:      new Date(),
-    }
+    return {data}
   }
 
-  protected abstract load(params: RequestParameters, abort: AbortController): Promise<any>
+  protected abstract load(params: RequestParameters, abort: AbortController): Promise<{buffer: any, url: string}>
 
 }
 

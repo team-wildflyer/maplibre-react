@@ -28,7 +28,7 @@ export class WorkerTileProvider extends TileProvider {
 
   // #region Interface
 
-  protected load({url}: RequestParameters, abort: AbortController): Promise<GetResourceResponse<any>> {
+  protected load({url}: RequestParameters, abort: AbortController): Promise<{buffer: GetResourceResponse<any>, url: string}> {
     return new Promise((resolve, reject) => {
       const uid = this.nextUID++
 
@@ -145,11 +145,11 @@ export class WorkerTileProvider extends TileProvider {
   // #region Worker events
 
   private onWorkerMessage = (event: MessageEvent) => {
-    const {type, payload} = event.data as {type: string, payload: any}
+    const {type, payload: {buffer, url}} = event.data as {type: string, payload: any}
     switch (type) {
     case 'result':
       return this.handleWorkerResult(event, request => {
-        request.resolve(payload)
+        request.resolve({buffer, url})
       })
     }
   }
@@ -209,7 +209,7 @@ export interface WorkerTileProviderOptions extends TileProviderOptions {
 interface DrawRequest {
   uid:     number
   url:     string
-  resolve: (response: GetResourceResponse<any>) => void
+  resolve: (response: {buffer: GetResourceResponse<any>, url: string}) => void
   reject:  (error: Error) => void
   cleanup: () => void
 }
