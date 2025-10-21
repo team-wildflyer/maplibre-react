@@ -28,7 +28,7 @@ export class WorkerTileProvider extends TileProvider {
 
   // #region Interface
 
-  protected load({url}: RequestParameters, abort: AbortController): Promise<{buffer: GetResourceResponse<any>, url: string}> {
+  protected load({url}: RequestParameters, abort: AbortController): Promise<GetResourceResponse<ArrayBuffer>> {
     return new Promise((resolve, reject) => {
       const uid = this.nextUID++
 
@@ -70,13 +70,7 @@ export class WorkerTileProvider extends TileProvider {
 
     // Abort and unassign any worker if applicable.
     const worker = this.getWorkerAssignedTo(uid)
-    if (worker == null) { return }
-
-    worker.postMessage({type: 'abort'})
-    this.assigned.delete(worker)
-
-    // This may free up a worker, so we can try to process the next request.
-    this.next()
+    worker?.postMessage({type: 'draw:abort'})
   }
 
   private getWorkerAssignedTo(uid: number) {
@@ -111,33 +105,25 @@ export class WorkerTileProvider extends TileProvider {
 
     const assigned: number[] = []    
     for (const request of this.pending) {
-      const worker = this.availableWorker()
+      const worker = this.assignToFreeWorker(request)
       if (worker == null) { break }
 
-      this.assignAndDraw(worker, request)
       assigned.push(request.uid)
+      worker.postMessage({
+        type:    'draw', 
+        payload: {url: request.url},
+      })
     }
 
     // Remove the assigned URLs from the pending list.
     this.pending = this.pending.filter(it => !assigned.includes(it.uid))
   }
 
-  private availableWorker() {
-    for (const worker of this.workers) {
-      if (!this.assigned.has(worker)) {
-        return worker
-      }
-    }
-
-    return null
-  }
-
-  private assignAndDraw(worker: Worker, request: DrawRequest) {
+  private assignToFreeWorker(request: DrawRequest) {
+    const worker = this.workers.find(it => !this.assigned.has(it))
+    if (worker == null) { return null }
     this.assigned.set(worker, request)
-    worker.postMessage({
-      type:    'draw', 
-      payload: request.url,
-    },)
+    return worker
   }
 
   // #endregion
@@ -145,13 +131,20 @@ export class WorkerTileProvider extends TileProvider {
   // #region Worker events
 
   private onWorkerMessage = (event: MessageEvent) => {
-    const {type, payload: {buffer, url}} = event.data as {type: string, payload: any}
-    switch (type) {
-    case 'result':
-      return this.handleWorkerResult(event, request => {
-        request.resolve({buffer, url})
-      })
-    }
+    const data = event.data as
+      | {type: 'draw:result', payload: {url: string} & GetResourceResponse<ArrayBuffer>}
+      | {type: 'draw:aborted'}
+
+    return this.handleWorkerResult(event, request => {
+      // If the worker was correctly aborted, recycle the worker.
+      if (data.type === 'draw:aborted') { return }
+
+      // If the worker failed to abort, it may still respond with the incorrect URL. Ignore this.
+      if (request.url !== data.payload.url) { return }
+
+      // Otherwise, resolve the request.
+      request.resolve(data.payload)
+    })
   }
 
   private onWorkerError = (event: ErrorEvent) => {
@@ -182,16 +175,13 @@ export class WorkerTileProvider extends TileProvider {
     try {
       handle(request)
     } finally {
-      request.cleanup()
       this.recycleWorker(worker)
       this.next()
     }
   }
 
   private recycleWorker(worker: Worker) {
-    const request = this.assigned.get(worker)
-    if (request == null) { return }
-
+    this.assigned.get(worker)?.cleanup()
     this.assigned.delete(worker)
   }
   
@@ -209,7 +199,7 @@ export interface WorkerTileProviderOptions extends TileProviderOptions {
 interface DrawRequest {
   uid:     number
   url:     string
-  resolve: (response: {buffer: GetResourceResponse<any>, url: string}) => void
+  resolve: (response: GetResourceResponse<ArrayBuffer>) => void
   reject:  (error: Error) => void
   cleanup: () => void
 }

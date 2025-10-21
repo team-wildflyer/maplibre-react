@@ -1,4 +1,10 @@
-import { addProtocol, removeProtocol, RequestParameters } from '@maptiler/sdk'
+import {
+  addProtocol,
+  ExpiryData,
+  GetResourceResponse,
+  removeProtocol,
+  RequestParameters,
+} from '@maptiler/sdk'
 import { Disposable } from 'react-util'
 import { bindMethods } from 'ytil'
 
@@ -21,19 +27,15 @@ export abstract class TileProvider extends Disposable {
     removeProtocol(this.protocol)
   }
 
-  private async handleLoad(params: RequestParameters, abort: AbortController): Promise<any> {
-    const {buffer: data, url} = await this.load(params, abort)
-    if (url !== params.url) {
-      console.warn(`Loaded URL does not match requested URL: requested=${params.url}, loaded=${url}`)
-      throw new Error("Loaded URL does not match requested URL")
+  private async handleLoad(params: RequestParameters, abort: AbortController): Promise<GetResourceResponse<ArrayBuffer>> {
+    const response = await this.load(params, abort)
+    return {
+      ...response,
+      ...this.options.expiry
     }
-    if (abort.signal.aborted) {
-      throw new Error("Request aborted")
-    }
-    return {data}
   }
 
-  protected abstract load(params: RequestParameters, abort: AbortController): Promise<{buffer: any, url: string}>
+  protected abstract load(params: RequestParameters, abort: AbortController): Promise<GetResourceResponse<ArrayBuffer>>
 
 }
 
@@ -41,5 +43,5 @@ export type TileProviderRequest<P> = RequestParameters & {params: P, query: URLS
 
 export interface TileProviderOptions {
   path?:  string
-  cache?: boolean
+  expiry?: ExpiryData
 }

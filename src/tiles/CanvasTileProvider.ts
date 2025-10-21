@@ -1,4 +1,4 @@
-import { RequestParameters } from '@maptiler/sdk'
+import { GetResourceResponse, RequestParameters } from '@maptiler/sdk'
 import { TileProvider, TileProviderOptions } from './TileProvider'
 
 export class CanvasTileProvider extends TileProvider {
@@ -15,7 +15,7 @@ export class CanvasTileProvider extends TileProvider {
 
   // #region Interface
 
-  protected async load(params: RequestParameters, abort: AbortController): Promise<{buffer: ArrayBuffer | null, url: string}> {
+  protected async load(params: RequestParameters, abort: AbortController): Promise<GetResourceResponse<ArrayBuffer>> {
     const canvas = new OffscreenCanvas(this.width, this.height)
     const context = canvas.getContext('2d')
     if (context == null) {
@@ -28,10 +28,8 @@ export class CanvasTileProvider extends TileProvider {
     }
 
     const blob = await canvas.convertToBlob()
-    return {
-      buffer: await blob.arrayBuffer(),
-      url: params.url,
-    }
+    const data = await blob.arrayBuffer()
+    return {data}
   }
 
   // #endregion
