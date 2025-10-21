@@ -9,7 +9,7 @@ export function useMapBounds(): LngLatBounds | null {
 
   useEffect(() => {
     model.addBoundsListener(setBounds)
-  }, [model.map])
+  }, [model, model.map])
 
   return bounds
 }

@@ -31,7 +31,7 @@ export abstract class TileProvider extends Disposable {
     const response = await this.load(params, abort)
     return {
       ...response,
-      ...this.options.expiry
+      ...this.options.expiry,
     }
   }
 
@@ -42,6 +42,6 @@ export abstract class TileProvider extends Disposable {
 export type TileProviderRequest<P> = RequestParameters & {params: P, query: URLSearchParams}
 
 export interface TileProviderOptions {
-  path?:  string
+  path?:   string
   expiry?: ExpiryData
 }
