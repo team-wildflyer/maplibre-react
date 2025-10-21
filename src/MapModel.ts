@@ -4,6 +4,7 @@ import {
   FitBoundsOptions,
   IControl,
   LayerSpecification,
+  LngLatBounds,
   Map as maptiler_Map,
   MapEventType,
   MapGeoJSONFeature,
@@ -138,6 +139,13 @@ export class MapModel extends Disposable {
     this._map.on('movestart', this.onMoveStart)
     this._map.on('zoomstart', this.onZoomStart)
     this._map.on('resize', this.onResize)
+
+    this._map.on('moveend', this.emitBoundsChanged.bind(this))
+    this._map.on('zoomend', this.emitBoundsChanged.bind(this))
+    this._map.on('pitchend', this.emitBoundsChanged.bind(this))
+    this._map.on('rotateend', this.emitBoundsChanged.bind(this))
+
+    this.emitBoundsChanged()
 
     this.disposer(() => {
       this.deinit()
@@ -302,6 +310,30 @@ export class MapModel extends Disposable {
   }
 
   // #endregion
+
+  // #region Bounds
+
+  private boundsListeners = new Set<BoundsListener>()
+
+  public getBounds(): LngLatBounds | null {
+    return this.map?.getBounds() ?? null
+  }
+
+  public addBoundsListener(listener: BoundsListener) {
+    this.boundsListeners.add(listener)
+    if (this.map != null) {
+      listener(this.map.getBounds())
+    }
+  }
+
+  private emitBoundsChanged() {
+    if (this.map == null) { return }
+    
+    const bounds = this.map.getBounds()
+    this.boundsListeners.forEach(it => it(bounds))
+  }
+
+  // #endreigon
 
   // #region Style
 
@@ -1169,6 +1201,8 @@ interface AddBackingLayersOptions {
 
 export type PolygonOptions = AddBackingLayersOptions
 export type BackingLayerOptions = AddBackingLayersOptions
+
+export type BoundsListener = (bounds: LngLatBounds) => void
 
 // #endregion
 
