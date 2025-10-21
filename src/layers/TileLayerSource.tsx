@@ -6,7 +6,7 @@ import { CamelizeKeys, sparse } from 'ytil'
 import { useMap } from '../MapContext'
 import { useTileLayer } from './TileLayerContext'
 
-export type TileLayerSourceProps = CamelizeKeys<Omit<VectorSourceSpecification | RasterSourceSpecification, 'tiles'>> & {
+export type TileLayerSourceProps = (CamelizeKeys<Omit<VectorSourceSpecification, 'tiles'>> | CamelizeKeys<Omit<RasterSourceSpecification, 'tiles'>>) & {
   id?:   string
   name?: string
   url:   string
