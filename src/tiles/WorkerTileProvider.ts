@@ -99,7 +99,7 @@ export class WorkerTileProvider extends TileProvider {
   // #endregion
 
   // #region Queue management
-
+ 
   private next() {
     if (this.pending.length === 0) { return }
 
