@@ -14,5 +14,6 @@ export * from './symbols'
 export * from './tiles'
 export * from './types'
 export * from './useMapBounds'
+export * from './useMapLoading'
 export * from './util'
 // /index

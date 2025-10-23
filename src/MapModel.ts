@@ -104,6 +104,8 @@ export class MapModel extends Disposable {
       this.deinit()
     }
 
+    this.queryLoading()
+
     this._mapStyle = initialStyle
     this._currentMapStyle = initialStyle
     if (initialViewport != null) {
@@ -133,6 +135,10 @@ export class MapModel extends Disposable {
     this._map.once('load', this.onLoad)
     this._map.once('idle', this.onIdle)
     this._map.on('sourcedata', this.onSourceData)
+
+    this._map.on('dataloading', this.queryLoading.bind(this))
+    this._map.on('dataabort', this.queryLoading.bind(this))
+    this._map.on('data', this.queryLoading.bind(this))
 
     // Set up event handlers.
     this._map.once('error', this.onError)
@@ -175,7 +181,6 @@ export class MapModel extends Disposable {
     if (this._map == null) { return }
     if (this._map.getCanvas() == null) { return }
 
-
     this._map.getCanvas().className = 'mapboxgl-canvas maplibregl-canvas blabla'
     this._map.getContainer().classList.add('mapboxgl-map')
     const canvasContainer = this._map.getCanvasContainer()
@@ -189,8 +194,7 @@ export class MapModel extends Disposable {
     if (this.loaded) { return }
 
     this._loaded = true
-
-    
+    this.queryLoading()
 
     this.deriveUnmanagedLayerIDs()
     this.deriveUnmanagedSourceIDs()
@@ -208,6 +212,7 @@ export class MapModel extends Disposable {
 
     this._idle = true
     this.operationQueue.flush()
+    this.queryLoading()
   }
 
   private onSourceData() {
@@ -219,6 +224,47 @@ export class MapModel extends Disposable {
       this._initializationErrors.push(event.error)
     } else {
       config.logger.error(event.error)
+    }
+  }
+
+  // #endregion
+
+  // #region Loading
+
+  private _loading: boolean = false
+  public get loading() { return this._loading }
+
+  private loadingChangeListeners = new Set<(loading: boolean) => void>()
+
+  private queryLoading() {
+    this._loading = this.isLoading()
+    this.emitLoadingChange()
+  }
+
+  private isLoading() {
+    if (this._map == null) { return true }
+    if (!this._map.areTilesLoaded()) { return true }
+
+    const sources = this._map.getStyle().sources
+    for (const id in sources) {
+      if (!this._map.isSourceLoaded(id)) { return true }
+    }
+
+    return false
+  }
+
+  public addLoadingListener(listener: (loading: boolean) => void) {
+    this.loadingChangeListeners.add(listener)
+    listener(this.loading)
+
+    return () => {
+      this.loadingChangeListeners.delete(listener)
+    }
+  }
+
+  private emitLoadingChange() {
+    for (const listener of this.loadingChangeListeners) {
+      listener(this.loading)
     }
   }
 
@@ -333,7 +379,7 @@ export class MapModel extends Disposable {
     this.boundsListeners.forEach(it => it(bounds))
   }
 
-  // #endreigon
+  // #endregion
 
   // #region Style
 
