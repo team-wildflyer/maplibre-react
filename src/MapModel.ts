@@ -19,7 +19,6 @@ import {
   SourceSpecification,
   VectorSourceSpecification,
 } from '@maptiler/sdk'
-import { TileLayer } from '@maptiler/weather'
 import { Point } from 'geojson'
 import { BBox, Geometry } from 'geojson-classes'
 import { isFunction } from 'lodash'
@@ -411,37 +410,6 @@ export class MapModel extends Disposable {
 
     this._map.setStyle(this.mapStyle)
     this._currentMapStyle = this._mapStyle
-  }
-
-  // #endregion
-
-  // #region Visualization time
-
-  private _visualizationTime: Date = new Date()
-  public get visualizationTime() { return this._visualizationTime }
-
-  public setVisualizationTime(time: Date) {
-    if (time === this._visualizationTime) { return }
-    this._visualizationTime = time
-
-    this.syncLayersWithTime()
-  }
-
-  private syncLayersWithTime() {
-    if (this._map == null) { return }
-
-    for (const id of this._map.style.getLayersOrder()) {
-      const backingLayerEntry = this._tileLayerBackingLayers.get(id)
-      if (backingLayerEntry == null) { continue }
-
-      const [, layer] = backingLayerEntry
-      if (!(layer instanceof TileLayer)) { continue }
-
-      const currentTime = layer.getAnimationTimeDate()
-      if (currentTime.getTime() === this.visualizationTime.getTime()) { continue }
-
-      layer.setAnimationTime(this.visualizationTime.getTime() / 1000)
-    }
   }
 
   // #endregion
