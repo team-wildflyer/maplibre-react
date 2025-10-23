@@ -1,13 +1,14 @@
-import { GetResourceResponse, RequestParameters } from '@maptiler/sdk'
+import { GetResourceResponse } from '@maptiler/sdk'
 import { isFunction, range } from 'lodash'
+import { EmptyObject } from 'ytil'
 import { TileProvider, TileProviderOptions } from './TileProvider'
 
-export class WorkerTileProvider extends TileProvider {
+export abstract class WorkerTileProvider<Data = EmptyObject> extends TileProvider {
 
   constructor(
     protocol: string,
     private readonly entry: string,
-    private readonly config: WorkerTileProviderOptions,
+    config: WorkerTileProviderOptions,
   ) {
     super(protocol, config)
 
@@ -21,14 +22,14 @@ export class WorkerTileProvider extends TileProvider {
   }
 
   private workers:  Worker[]
-  private pending:  DrawRequest[] = []
-  private assigned: Map<Worker, DrawRequest> = new Map()
+  private pending:  DrawRequest<Data>[] = []
+  private assigned: Map<Worker, DrawRequest<Data>> = new Map()
 
   private nextUID: number = 0
 
   // #region Interface
 
-  protected load({url}: RequestParameters, abort: AbortController): Promise<GetResourceResponse<ArrayBuffer>> {
+  protected enqueue(url: string, data: Data, abort: AbortController): Promise<GetResourceResponse<ArrayBuffer>> {
     return new Promise((resolve, reject) => {
       const uid = this.nextUID++
 
@@ -54,6 +55,7 @@ export class WorkerTileProvider extends TileProvider {
       this.pending.push({
         uid,
         url,
+        data,
         resolve,
         reject,
         cleanup,
@@ -109,17 +111,24 @@ export class WorkerTileProvider extends TileProvider {
       if (worker == null) { break }
 
       assigned.push(request.uid)
-      worker.postMessage({
-        type:    'draw', 
-        payload: {url: request.url},
-      })
+      this.sendRequestMessage(worker, request)
     }
 
     // Remove the assigned URLs from the pending list.
     this.pending = this.pending.filter(it => !assigned.includes(it.uid))
   }
 
-  private assignToFreeWorker(request: DrawRequest) {
+  protected sendRequestMessage(worker: Worker, request: DrawRequest<Data>) {
+    worker.postMessage({
+      type:    'draw', 
+      payload: {
+        url: request.url,
+        data: request.data,
+      },
+    })
+  }
+
+  private assignToFreeWorker(request: DrawRequest<Data>) {
     const worker = this.workers.find(it => !this.assigned.has(it))
     if (worker == null) { return null }
     this.assigned.set(worker, request)
@@ -161,7 +170,7 @@ export class WorkerTileProvider extends TileProvider {
     })
   }
 
-  private handleWorkerResult(event: {currentTarget: any}, handle: (request: DrawRequest) => void) {
+  private handleWorkerResult(event: {currentTarget: any}, handle: (request: DrawRequest<Data>) => void) {
     const worker = event.currentTarget as Worker
     if (!(worker instanceof Worker)) { 
       throw new Error("Invalid worker instance")
@@ -191,14 +200,12 @@ export class WorkerTileProvider extends TileProvider {
 
 export interface WorkerTileProviderOptions extends TileProviderOptions {
   poolSize?: number
-
-  init?:   (this: WorkerTileProvider) => Promise<void>
-  deinit?: (this: WorkerTileProvider) => Promise<void>
 }
 
-interface DrawRequest {
+interface DrawRequest<Data> {
   uid:     number
   url:     string
+  data:    Data
   resolve: (response: GetResourceResponse<ArrayBuffer>) => void
   reject:  (error: Error) => void
   cleanup: () => void

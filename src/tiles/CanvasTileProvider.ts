@@ -15,7 +15,7 @@ export class CanvasTileProvider extends TileProvider {
 
   // #region Interface
 
-  protected async load(params: RequestParameters, abort: AbortController): Promise<GetResourceResponse<ArrayBuffer>> {
+  protected async renderTile(params: RequestParameters, abort: AbortController): Promise<GetResourceResponse<ArrayBuffer>> {
     const canvas = new OffscreenCanvas(this.width, this.height)
     const context = canvas.getContext('2d')
     if (context == null) {
