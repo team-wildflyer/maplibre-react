@@ -8,6 +8,7 @@ import { TileLayerFill } from './TileLayerFill'
 import { TileLayerLine } from './TileLayerLine'
 import { TileLayerRaster } from './TileLayerRaster'
 import { TileLayerSource } from './TileLayerSource'
+import { TileLayerSymbol } from './TileLayerSymbol'
 
 export interface TileLayerProps {
   name:      string
@@ -37,6 +38,7 @@ Object.assign(TileLayer$, {
   Source:       TileLayerSource,
   Fill:         TileLayerFill,
   Line:         TileLayerLine,
+  Symbol:       TileLayerSymbol,
   Circle:       TileLayerCircle,
   Raster:       TileLayerRaster,
   Custom:       TileLayerCustom,
@@ -47,6 +49,7 @@ export const TileLayer = TileLayer$ as typeof TileLayer$ & {
   Source:       typeof TileLayerSource
   Fill:         typeof TileLayerFill
   Line:         typeof TileLayerLine
+  Symbol:       typeof TileLayerSymbol
   Circle:       typeof TileLayerCircle
   Raster:       typeof TileLayerRaster
   Custom:       typeof TileLayerCustom

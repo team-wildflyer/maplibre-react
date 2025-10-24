@@ -75,7 +75,7 @@ export abstract class WorkerTileProvider<Data = EmptyObject> extends TileProvide
 
     // Abort and unassign any worker if applicable.
     const worker = this.getWorkerAssignedTo(uid)
-    worker?.postMessage({type: 'draw:abort'})
+    worker?.postMessage({type: 'render:abort'})
   }
 
   private getWorkerAssignedTo(uid: number) {
@@ -130,7 +130,7 @@ export abstract class WorkerTileProvider<Data = EmptyObject> extends TileProvide
 
   protected sendRequestMessage(worker: Worker, request: DrawRequest<Data>) {
     worker.postMessage({
-      type:    'draw', 
+      type:    'render', 
       payload: {
         url:  request.url,
         data: request.data,
@@ -151,12 +151,12 @@ export abstract class WorkerTileProvider<Data = EmptyObject> extends TileProvide
 
   private onWorkerMessage = (event: MessageEvent) => {
     const data = event.data as
-      | {type: 'draw:result', payload: {url: string} & GetResourceResponse<ArrayBuffer>}
-      | {type: 'draw:aborted'}
+      | {type: 'render:result', payload: {url: string} & GetResourceResponse<ArrayBuffer>}
+      | {type: 'render:aborted'}
 
     return this.handleWorkerResult(event, request => {
       // If the worker was correctly aborted, recycle the worker.
-      if (data.type === 'draw:aborted') { return }
+      if (data.type === 'render:aborted') { return }
 
       // If the worker failed to abort, it may still respond with the incorrect URL. Ignore this.
       if (request.url !== data.payload.url) { return }

@@ -68,6 +68,14 @@ export const expressions = {
   lt:  binary('<'),
   lte: binary('<='),
 
+  toNumber(val: Expression): ExpressionSpecification {
+    return ['to-number', val]
+  },
+
+  toString(val: Expression): ExpressionSpecification {
+    return ['to-string', val]
+  },
+
   literal(value: unknown): ExpressionSpecification {
     return ['literal', value]
   },
