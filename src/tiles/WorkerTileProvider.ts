@@ -7,21 +7,24 @@ export abstract class WorkerTileProvider<Data = EmptyObject> extends TileProvide
 
   constructor(
     protocol: string,
-    private readonly entry: string,
+    entry: string,
     config: WorkerTileProviderOptions,
   ) {
     super(protocol, config)
 
-    this.workers = range(config.poolSize ?? 1).map(() => {
-      const worker = new Worker(this.entry, {type: 'module'})
-      worker.addEventListener('message', this.onWorkerMessage)
-      worker.addEventListener('messageerror', this.onWorkerMessageError)
-      worker.addEventListener('error', this.onWorkerError)
-      return worker
-    })
+    this.workers = range(config.poolSize ?? navigator.hardwareConcurrency ?? 4)
+      .map(() => {
+        const worker = new Worker(entry, {type: 'module'})
+        worker.addEventListener('message', this.onWorkerMessage)
+        worker.addEventListener('messageerror', this.onWorkerMessageError)
+        worker.addEventListener('error', this.onWorkerError)
+        return worker
+      })
   }
 
-  private workers:  Worker[]
+  private workers: Worker[]
+  private additionalWorkers = new Set<Worker>()
+
   private pending:  DrawRequest<Data>[] = []
   private assigned: Map<Worker, DrawRequest<Data>> = new Map()
 
@@ -87,12 +90,19 @@ export abstract class WorkerTileProvider<Data = EmptyObject> extends TileProvide
 
   // #region Other methods
 
+  public registerAdditionalWorker(worker: Worker) {
+    this.additionalWorkers.add(worker)
+    return () => {
+      this.additionalWorkers.delete(worker)
+    }
+  }
+
   public broadcastMessage(type: string, payload: any): void
   public broadcastMessage(type: string, payload: () => {payload: any, transfer: Transferable[]}): void
   public broadcastMessage(type: string, arg: any) {
     const getPayload = () => isFunction(arg) ? arg() : {payload: arg, transfer: undefined}
 
-    for (const worker of this.workers) {
+    for (const worker of [...this.workers, ...this.additionalWorkers]) {
       const {payload, transfer} = getPayload()
       worker.postMessage({type, payload}, transfer)
     }
@@ -122,7 +132,7 @@ export abstract class WorkerTileProvider<Data = EmptyObject> extends TileProvide
     worker.postMessage({
       type:    'draw', 
       payload: {
-        url: request.url,
+        url:  request.url,
         data: request.data,
       },
     })
@@ -156,7 +166,7 @@ export abstract class WorkerTileProvider<Data = EmptyObject> extends TileProvide
     })
   }
 
-  private onWorkerError = (event: ErrorEvent) => {
+  protected onWorkerError = (event: ErrorEvent) => {
     const worker = event.currentTarget as Worker
     if (!(worker instanceof Worker)) { return }
 
@@ -164,7 +174,7 @@ export abstract class WorkerTileProvider<Data = EmptyObject> extends TileProvide
     this.next()
   }
 
-  private onWorkerMessageError = (event: MessageEvent) => {
+  protected onWorkerMessageError = (event: MessageEvent) => {
     this.handleWorkerResult(event, request => {
       request.reject(new Error("Worker message serialization error"))
     })
