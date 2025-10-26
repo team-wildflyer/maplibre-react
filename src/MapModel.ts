@@ -628,7 +628,7 @@ export class MapModel extends Disposable {
       if (remainingLayerIDs.has(id)) {
         remainingLayerIDs.delete(id)
       } else {
-        config.logger.debug('  ADD', id)
+        config.logger.debug('  ADD', id, `(source=${(layer as any).source})`)
         this.mapLayersOrdering.addLayer(layer, options)
         this.currentBackingLayers.set(id, [parentName, layer])
 
@@ -845,9 +845,20 @@ export class MapModel extends Disposable {
     () => this.mapStyle,
     () => this._map?.style.getLayersOrder() ?? [],
     (layer, insertBefore) => {
+      // try {
+      // console.groupEnd()
+      // console.group(">>>>", layer.id)
+      // console.log("LAYER", layer)
+      // console.log("SOURCE", this._map?.getSource((layer as any).source))
       this._map?.style.addLayer(layer, insertBefore)
+      // console.log(JSON.stringify(this._map?.style.getLayersOrder(), null, 2))
+      // console.groupEnd()
+      // } catch (error) {
+      //   console.error(error)
+      // }
     },
     id => {
+      // console.log("<<<<", id)
       this._map?.removeLayer(id)
     }
   )

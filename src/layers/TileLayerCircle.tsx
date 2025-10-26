@@ -2,6 +2,7 @@ import { CircleLayerSpecification } from '@maptiler/sdk'
 import { useEffect, useRef } from 'react'
 import { memo } from 'react-util'
 import { usePrevious, useWithStableDeps } from 'react-util/hooks'
+import { sparse } from 'ytil'
 import { useMap } from '../MapContext'
 import { useLayerGroup } from './LayerGroupContext'
 import { useTileLayer } from './TileLayerContext'
@@ -38,7 +39,7 @@ export const TileLayerCircle = memo('TileLayerCircle', (props: TileLayerCirclePr
     return ensureBackingLayer(layer.name, {
       id:             id,
       type:           'circle',
-      source:         source ?? layer.name,
+      source:         sparse([source, layer.name]).join('-'),
       'source-layer': sourceLayer ?? layer.name,
       paint:          initialPaintRef.current, 
       ...stableRest,
