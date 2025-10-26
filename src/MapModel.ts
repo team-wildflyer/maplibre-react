@@ -493,13 +493,10 @@ export class MapModel extends Disposable {
   public addTileLayerBackingLayer(layer: BackingLayer, options: BackingLayerOptions = {}) {
     if (this._tileLayerBackingLayers.some(it => it[0].id === layer.id)) { return }
 
-    console.log("ADD", layer.type, layer.id)
-
     this._tileLayerBackingLayers.push([layer, options])
     this.syncBackingLayersSoon()
 
     return () => {
-      console.log("REMOVE", layer.type, layer.id)
       this._tileLayerBackingLayers = this._tileLayerBackingLayers.filter(it => it[0].id !== layer.id)
       this.syncBackingLayersSoon()
     }
