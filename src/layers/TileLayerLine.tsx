@@ -1,5 +1,5 @@
 import { LineLayerSpecification } from '@maptiler/sdk'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { memo } from 'react-util'
 import { usePrevious, useWithStableDeps } from 'react-util/hooks'
 import { sparse } from 'ytil'
@@ -23,9 +23,9 @@ export const TileLayerLine = memo('TileLayerLine', (props: TileLayerLineProps) =
   const layer = useTileLayer()
   const group = useLayerGroup()
 
-  const {ensureBackingLayer, updateBackingLayerPaint, addTileBackingLayerClickListener} = useMap()
+  const {addTileLayerBackingLayer: ensureBackingLayer, updateBackingLayerPaint, addTileBackingLayerClickListener} = useMap()
 
-  const id = `${layer.name}:line`
+  const id = `${sparse([layer.name, props.sourceLayer]).join('-')}:line`
   const initialPaintRef = useRef(paint)
   const prevPaint = usePrevious(paint)
 
@@ -34,19 +34,23 @@ export const TileLayerLine = memo('TileLayerLine', (props: TileLayerLineProps) =
     return addTileBackingLayerClickListener(id, onClick)
   }, [addTileBackingLayerClickListener, id, onClick])
 
-  const stableRest = useWithStableDeps(rest, () => [])
-  useEffect(() => {
-    return ensureBackingLayer(layer.name, {
+  const spec = useWithStableDeps(rest, () => [])
+  const backingLayer = useMemo((): LineLayerSpecification => {
+    return {
       id:             id,
       type:           'line',
       source:         sparse([source, layer.name]).join('-'),
       'source-layer': sourceLayer ?? layer.name,
       paint:          initialPaintRef.current, 
-      ...stableRest,
-    }, {
+      ...spec,
+    }
+  }, [id, layer.name, source, sourceLayer, spec])
+
+  useEffect(() => {
+    return ensureBackingLayer(backingLayer, {
       group: group?.name,
     })
-  }, [ensureBackingLayer, group, id, layer.name, source, sourceLayer, stableRest])
+  }, [backingLayer, ensureBackingLayer, group?.name])
 
   useEffect(() => {
     if (prevPaint === undefined) { return }

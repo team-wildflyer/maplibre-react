@@ -21,7 +21,6 @@ export interface TileLayerRasterProps extends TileLayerCommonProps, TileLayerRas
 export const TileLayerRaster = memo('TileLayerRaster', (props: TileLayerRasterProps) => {
 
   const {
-    name,
     source,
     sourceLayer,
     ...rest
@@ -33,10 +32,7 @@ export const TileLayerRaster = memo('TileLayerRaster', (props: TileLayerRasterPr
   const map = useMap()
 
   // Create an ID based on the sourceLayer 
-  const id = useMemo(
-    () => sparse([layer.name, props.name ?? props.sourceLayer]).join('-'),
-    [layer.name, props.name, props.sourceLayer]
-  )
+  const id = sparse([layer.name, props.sourceLayer]).join('-')
 
   // All rest props are considered part of the layer spec. Make sure to use a `key` prop if you have a dynamic
   // layer specification.
@@ -52,15 +48,15 @@ export const TileLayerRaster = memo('TileLayerRaster', (props: TileLayerRasterPr
       source:         sparse([layer.name, source]).join('-'),
       'source-layer': sourceLayer,
 
-      ...mapKeys(props, (_, key) => kebabCase(key)) as any,
+      ...mapKeys(spec, (_, key) => kebabCase(key)) as any,
     })
-  }, [id, layer.name, props, source, sourceLayer])
+  }, [id, layer.name, source, sourceLayer, spec])
 
   useEffect(() => {
-    return map.ensureBackingLayer(layer.name, backingLayer, {
+    return map.addTileLayerBackingLayer(backingLayer, {
       group: group?.name,
     })
-  }, [backingLayer, group, layer.name, map, spec])
+  }, [backingLayer, group?.name, map])
 
   return null
 

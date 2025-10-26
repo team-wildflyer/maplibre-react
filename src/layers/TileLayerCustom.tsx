@@ -19,7 +19,7 @@ export const TileLayerCustom = memo('TileLayerCustom', (props: TileLayerCustomPr
 
   useEffect(() => {
     const backingLayer = create(layer.name)
-    return map.ensureBackingLayer(layer.name, backingLayer, {
+    return map.addTileLayerBackingLayer(backingLayer, {
       group: group?.name,
     })
   }, [create, group, layer, map])

@@ -33,7 +33,7 @@ export const TileLayerSource = memo('TileLayerSource', (props: TileLayerSourcePr
   useEffect(() => {
     // Add the source regardless of whether it's visible or not.
     map.ensureTileLayerSource(id, url, spec)
-  }, [id, layer.name, map, name, spec, url])
+  }, [id, map, spec, url])
 
   useEffect(() => () => {
     map.removeSource(id)

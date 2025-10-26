@@ -417,15 +417,17 @@ export class MapModel extends Disposable {
   // #region Polygons
 
   private polygonTimer = new Timer()
-  private polygons = new Map<string, [PolygonConfig, PolygonOptions]>()
+  private _polygons: Array<[string, PolygonConfig, PolygonOptions]> = []
   
   public addPolygon(id: string, polygon: PolygonConfig, options: PolygonOptions = {}) {
-    this.polygons.set(id, [polygon, options])
-    this.polygonTimer.debounce(() => this.syncBackingLayers(), config.updateDebounce)
+    if (this._polygons.some(it => it[0] === id)) { return }
+
+    this._polygons.push([id, polygon, options])
+    this.syncBackingLayersSoon()
 
     return () => {
-      this.polygons.delete(id)
-      this.polygonTimer.debounce(() => this.syncBackingLayers(), config.updateDebounce)
+      this._polygons = this._polygons.filter(it => it[0] !== id)
+      this.syncBackingLayersSoon()
     }
   }
 
@@ -483,21 +485,22 @@ export class MapModel extends Disposable {
 
   private layerTimer = new Timer()
 
-  private readonly _tileLayerBackingLayers = new Map<string, [string, BackingLayer, BackingLayerOptions]>()
+  private _tileLayerBackingLayers: Array<[BackingLayer, BackingLayerOptions]> = []
   private readonly _tileLayerSources = new Map<string, [string, VectorSourceSpecification | RasterSourceSpecification]>()
 
-  private currentBackingLayers = new Map<string, [string, BackingLayer]>()
+  private currentBackingLayers = new Map<string, BackingLayer>()
 
-  public ensureBackingLayer(parentName: string, layer: BackingLayer, options: BackingLayerOptions = {}) {
-    if (this._tileLayerBackingLayers.has(layer.id)) { return }
+  public addTileLayerBackingLayer(layer: BackingLayer, options: BackingLayerOptions = {}) {
+    if (this._tileLayerBackingLayers.some(it => it[0].id === layer.id)) { return }
 
-    this._tileLayerBackingLayers.set(layer.id, [parentName, layer, options])
+    console.log("ADD", layer.type, layer.id)
+
+    this._tileLayerBackingLayers.push([layer, options])
     this.syncBackingLayersSoon()
 
     return () => {
-      if (!this._tileLayerBackingLayers.has(layer.id)) { return }
-      
-      this._tileLayerBackingLayers.delete(layer.id)
+      console.log("REMOVE", layer.type, layer.id)
+      this._tileLayerBackingLayers = this._tileLayerBackingLayers.filter(it => it[0].id !== layer.id)
       this.syncBackingLayersSoon()
     }
   }
@@ -508,6 +511,15 @@ export class MapModel extends Disposable {
 
     for (const [key, value] of Object.entries(paint ?? {})) {
       this._map.setPaintProperty(layerID, key, value)
+    }
+  }
+
+  public updateBackingLayerLayout(layerID: string, layout: LayerSpecification['layout']) {
+    if (this._map == null) { return }
+    if (this._map.style?.getLayer(layerID) == null) { return }
+
+    for (const [key, value] of Object.entries(layout ?? {})) {
+      this._map.setLayoutProperty(layerID, key, value)
     }
   }
 
@@ -624,21 +636,21 @@ export class MapModel extends Disposable {
     config.logger.debug('TILE LAYERS')
     config.logger.debug('nextLayerIDs:', Array.from(this._tileLayerBackingLayers.keys()).join(', '))
 
-    for (const [id, [parentName, layer, options]] of this._tileLayerBackingLayers) {
-      if (remainingLayerIDs.has(id)) {
-        remainingLayerIDs.delete(id)
+    for (const [layer, options] of this._tileLayerBackingLayers) {
+      if (remainingLayerIDs.has(layer.id)) {
+        remainingLayerIDs.delete(layer.id)
       } else {
-        config.logger.debug('  ADD', id, `(source=${(layer as any).source})`)
+        config.logger.debug('  ADD', layer.id, `(source=${(layer as any).source})`)
         this.mapLayersOrdering.addLayer(layer, options)
-        this.currentBackingLayers.set(id, [parentName, layer])
+        this.currentBackingLayers.set(layer.id, layer)
 
-        this.setUpBackingLayerInteraction(id)
+        this.setUpBackingLayerInteraction(layer.id)
       }
     }
   }
 
   private ensurePolygonSources(remainingSourceIDs: Set<string>) {
-    for (const [id, [polygon]] of this.polygons) {
+    for (const [id, polygon] of this._polygons) {
       if (remainingSourceIDs.has(id)) {
         remainingSourceIDs.delete(id)
       } else {
@@ -650,9 +662,9 @@ export class MapModel extends Disposable {
 
   private ensurePolygonBackingLayers(remainingLayerIDs: Set<string>) {
     config.logger.info('POLYGON LAYERS')
-    config.logger.info('polygonIDs:', Array.from(this.polygons.keys()).join(', '))
+    config.logger.info('polygonIDs:', Array.from(this._polygons.keys()).join(', '))
 
-    for (const [id, [polygon, options]] of this.polygons) {
+    for (const [id, polygon, options] of this._polygons) {
       const fillLayer = this.buildPolygonFillLayer(id, polygon)
       const lineLayer = this.buildPolygonOutlineLayer(id, polygon)
 
@@ -845,20 +857,9 @@ export class MapModel extends Disposable {
     () => this.mapStyle,
     () => this._map?.style.getLayersOrder() ?? [],
     (layer, insertBefore) => {
-      // try {
-      // console.groupEnd()
-      // console.group(">>>>", layer.id)
-      // console.log("LAYER", layer)
-      // console.log("SOURCE", this._map?.getSource((layer as any).source))
       this._map?.style.addLayer(layer, insertBefore)
-      // console.log(JSON.stringify(this._map?.style.getLayersOrder(), null, 2))
-      // console.groupEnd()
-      // } catch (error) {
-      //   console.error(error)
-      // }
     },
     id => {
-      // console.log("<<<<", id)
       this._map?.removeLayer(id)
     }
   )
@@ -1187,7 +1188,7 @@ export class MapModel extends Disposable {
   private forceRepaint() {
     if (this._map == null) { return }
 
-    for (const [, layer] of this.currentBackingLayers.values()) {
+    for (const layer of this.currentBackingLayers.values()) {
       this._map.setLayoutProperty(layer.id, 'visibility', 'none')
       this._map.setLayoutProperty(layer.id, 'visibility', 'visible')
     }

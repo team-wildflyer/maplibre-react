@@ -1,5 +1,5 @@
 import { CircleLayerSpecification } from '@maptiler/sdk'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { memo } from 'react-util'
 import { usePrevious, useWithStableDeps } from 'react-util/hooks'
 import { sparse } from 'ytil'
@@ -16,6 +16,7 @@ export const TileLayerCircle = memo('TileLayerCircle', (props: TileLayerCirclePr
     source,
     sourceLayer,
     onClick,
+    layout,
     paint,
     ...rest
   } = props
@@ -23,9 +24,18 @@ export const TileLayerCircle = memo('TileLayerCircle', (props: TileLayerCirclePr
   const layer = useTileLayer()
   const group = useLayerGroup()
 
-  const {ensureBackingLayer, updateBackingLayerPaint, addTileBackingLayerClickListener} = useMap()
+  const {
+    addTileLayerBackingLayer: ensureBackingLayer, 
+    updateBackingLayerPaint, 
+    updateBackingLayerLayout, 
+    addTileBackingLayerClickListener,
+  } = useMap()
 
-  const id = `${layer.name}:circle`
+  const id = `${sparse([layer.name, props.sourceLayer]).join('-')}:circle`
+
+  const initialLayoutRef = useRef(layout)
+  const prevLayout = usePrevious(layout)
+
   const initialPaintRef = useRef(paint)
   const prevPaint = usePrevious(paint)
 
@@ -34,19 +44,31 @@ export const TileLayerCircle = memo('TileLayerCircle', (props: TileLayerCirclePr
     return addTileBackingLayerClickListener(id, onClick)
   }, [addTileBackingLayerClickListener, id, onClick])
 
-  const stableRest = useWithStableDeps(rest, () => [])
-  useEffect(() => {
-    return ensureBackingLayer(layer.name, {
+  const spec = useWithStableDeps(rest, () => [])
+  const backingLayer = useMemo((): CircleLayerSpecification => {
+    return {
       id:             id,
       type:           'circle',
       source:         sparse([source, layer.name]).join('-'),
       'source-layer': sourceLayer ?? layer.name,
+      layout:         initialLayoutRef.current,
       paint:          initialPaintRef.current, 
-      ...stableRest,
-    }, {
+      ...spec,
+    }
+  }, [id, layer.name, source, sourceLayer, spec])
+
+  useEffect(() => {
+    return ensureBackingLayer(backingLayer, {
       group: group?.name,
     })
-  }, [ensureBackingLayer, group, id, layer.name, source, sourceLayer, stableRest])
+  }, [backingLayer, ensureBackingLayer, group?.name])
+
+  useEffect(() => {
+    if (prevLayout === undefined) { return }
+    if (layout === prevLayout) { return }
+
+    updateBackingLayerLayout(id, layout)
+  }, [id, layout, prevLayout, updateBackingLayerLayout])
 
   useEffect(() => {
     if (prevPaint === undefined) { return }
