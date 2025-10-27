@@ -10,7 +10,7 @@ import { MapModel } from './MapModel'
 export class OperationQueue {
 
   constructor(
-    private readonly map: MapModel
+    private readonly map: MapModel,
   ) {}
  
   private initializationQueue: Operation<any>[] = []

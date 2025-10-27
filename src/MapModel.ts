@@ -96,7 +96,7 @@ export class MapModel extends Disposable {
     element: HTMLElement,
     initialStyle: MapStyleSpecification,
     initialViewport: ViewportLike | undefined,
-    options: MapOptions = {}
+    options: MapOptions = {},
   ) {
     if (element === this._element && this._map != null) { return }
     if (this._map != null || this._element != null) {
@@ -561,7 +561,7 @@ export class MapModel extends Disposable {
   private syncBackingLayersSoon() {
     this.backingLayersTimer.debounce(
       () => this.syncBackingLayers(),
-      config.updateDebounce
+      config.updateDebounce,
     )
   } 
 
@@ -858,7 +858,7 @@ export class MapModel extends Disposable {
     },
     id => {
       this._map?.removeLayer(id)
-    }
+    },
   )
 
   public registerLayerGroup(name: string, ordering: LayerGroupOrdering) {

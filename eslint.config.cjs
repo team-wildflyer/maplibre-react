@@ -18,6 +18,9 @@ module.exports = {
 
   plugins: {
     '@stylistic': require('@stylistic/eslint-plugin'),
+    'react-refresh': require('eslint-plugin-react-refresh'),
+    'react-hooks': require('eslint-plugin-react-hooks'),
+    'unused-imports': require('eslint-plugin-unused-imports'),
     '@mosdev': require('@mosdev/eslint-plugin')
   },
 
@@ -29,9 +32,11 @@ module.exports = {
     'bin',
     'dist',
     'node_modules',
-    'eslint.config.js',
     'tsconfig.json'
   ],
 
-  rules: YAML.load(FS.readFileSync('../../eslint.rules.yml'))
+  rules: {
+    ...YAML.load(FS.readFileSync('../../eslint.rules.yml')),
+    ...YAML.load(FS.readFileSync('../../eslint.rules.react.yml')),
+  }
 };

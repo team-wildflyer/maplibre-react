@@ -13,7 +13,7 @@ export abstract class TileProvider extends Disposable {
 
   constructor(
     public readonly protocol: string,
-    public readonly options: TileProviderOptions = {}
+    public readonly options: TileProviderOptions = {},
   ) {
     super()
     bindMethods(this)

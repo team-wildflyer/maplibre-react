@@ -3,7 +3,7 @@ import { RequestParameters } from '@maptiler/sdk'
 export class TileCache {
 
   constructor(
-    private capacity: number
+    private capacity: number,
   ) {}
 
   private cache = new Map<string, [ArrayBuffer, number]>()

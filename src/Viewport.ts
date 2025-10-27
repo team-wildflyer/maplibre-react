@@ -7,7 +7,7 @@ import { Size } from 'ytil'
 export class Viewport {
 
   private constructor(
-    public params: ViewportParams
+    public params: ViewportParams,
   ) {}
 
   public static world(): Viewport {

@@ -30,7 +30,7 @@ export const expressions = {
   switch(expr: Expression, cases: SwitchCaseExpression[], defaultValue: Expression): ExpressionSpecification {
     return this.case(
       cases.map(([value, output]) => [['==', expr, value], output]),
-      defaultValue
+      defaultValue,
     )
   },
 
