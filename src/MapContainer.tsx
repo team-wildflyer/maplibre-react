@@ -12,7 +12,7 @@ export const MapContainer = memo('MapContainer', (props: MapContainerProps) => {
 
   const map = useDisposable(useMemo(
     () => new MapModel(),
-    []
+    [],
   ))
   
   return (

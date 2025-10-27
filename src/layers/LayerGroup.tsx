@@ -19,7 +19,7 @@ export const LayerGroup = memo('LayerGroup', (props: LayerGroupProps) => {
   
   const positioning = useWithStableDeps(
     omit(props, 'name') as LayerGroupOrdering,
-    ordering => ['above' in ordering ? `above-${ordering.above}` : `below-${ordering.below}`]
+    ordering => ['above' in ordering ? `above-${ordering.above}` : `below-${ordering.below}`],
   )
 
   const contextValue: LayerGroupContext = useMemo(() => ({
@@ -29,7 +29,7 @@ export const LayerGroup = memo('LayerGroup', (props: LayerGroupProps) => {
   const map = useMap()
   useEffect(
     () => map.registerLayerGroup(name, positioning),
-    [map, name, positioning]
+    [map, name, positioning],
   )
 
   return (

@@ -78,7 +78,7 @@ export const ContextMenu = memo('ContextMenu', (props: ContextMenuProps) => {
 
   const marker = useMemo(
     () => renderMarker == null ? null : document.createElement('div'),
-    [renderMarker]
+    [renderMarker],
   )
 
   useEffect(() => {
@@ -107,7 +107,7 @@ export const ContextMenu = memo('ContextMenu', (props: ContextMenuProps) => {
       {isFunction(children) ? children(childProps) : children}
       {renderMarker != null && marker != null && createPortal(
         isFunction(renderMarker) ? renderMarker(childProps) : renderMarker,
-        marker
+        marker,
       )}
     </>
   )

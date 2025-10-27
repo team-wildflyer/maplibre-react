@@ -90,7 +90,7 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
         wrapper,
         mapStyleRef.current,
         defaultViewportRef.current,
-        options
+        options,
       )
     }, 0)
     return () => { map.deinit() }

@@ -46,7 +46,7 @@ export const Marker = memo('Marker', (props: MarkerProps) => {
         anchor,
         ...optionsRef.current,
       },
-      markAdded
+      markAdded,
     )
 
     return cleanup

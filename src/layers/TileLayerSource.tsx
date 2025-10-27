@@ -27,7 +27,7 @@ export const TileLayerSource = memo('TileLayerSource', (props: TileLayerSourcePr
   const spec = useWithStableDeps(rest, () => [])
   const id = useMemo(
     () => props_id ?? sparse([layer.name, name]).join('-'),
-    [layer.name, name, props_id]
+    [layer.name, name, props_id],
   )
 
   useEffect(() => {
