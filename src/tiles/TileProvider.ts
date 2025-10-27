@@ -30,18 +30,18 @@ export abstract class TileProvider extends Disposable {
 
   private async protocolLoad(params: RequestParameters, abort: AbortController): Promise<GetResourceResponse<Partial<TileJSON> | ArrayBuffer>> {
     switch (params.type) {
-      case 'json':
-        return {
-          data: await this.loadTileJSON(params)
-        }
-      case 'arrayBuffer': case 'image':
-      case undefined:
-        return {
-          ...await this.renderTile(params, abort),
-          ...this.options.expiry
-        }
-      default:
-        throw new TypeError(`Requested type "${params.type}" is not supported`)
+    case 'json':
+      return {
+        data: await this.loadTileJSON(params),
+      }
+    case 'arrayBuffer': case 'image':
+    case undefined:
+      return {
+        ...await this.renderTile(params, abort),
+        ...this.options.expiry,
+      }
+    default:
+      throw new TypeError(`Requested type "${params.type}" is not supported`)
     }
   }
 
@@ -58,21 +58,62 @@ export abstract class TileProvider extends Disposable {
 
     return {
       tilejson: '2.2.0',
-      tiles: [params.url + `/{z}/{x}/{y}.${format}`],
+      tiles:    [params.url + `/{z}/{x}/{y}.${format}`],
       format,
 
-      attribution: resolveOption(this.options.attribution),
-      description: resolveOption(this.options.description),
-      minzoom: resolveOption(this.options.minzoom) ?? 0,
-      maxzoom: resolveOption(this.options.maxzoom) ?? 14,
-      bounds: resolveOption(this.options.bounds),
-      scale: resolveOption(this.options.scale),
-      center: resolveOption(this.options.center),
+      attribution: this.attribution(params.url),
+      description: this.description(params.url),
+      minzoom:     this.minzoom(params.url),
+      maxzoom:     this.maxzoom(params.url),
+      bounds:      this.bounds(params.url),
+      scale:       this.scale(params.url),
+      center:      this.center(params.url),
     }
   }
 
+  protected attribution(url: string) {
+    return resolveOption(this.options.attribution, url)
+  }
+
+  protected description(url: string) {
+    return resolveOption(this.options.description, url)
+  }
+
+  protected minzoom(url: string) {
+    return resolveOption(this.options.minzoom, url) ?? 0
+  }
+
+  protected maxzoom(url: string) {
+    return resolveOption(this.options.maxzoom, url) ?? 14
+  }
+
+  protected bounds(url: string) {
+    return resolveOption(this.options.bounds, url)
+  }
+
+  protected scale(url: string) {
+    return resolveOption(this.options.scale, url)
+  }
+
+  protected center(url: string) {
+    return resolveOption(this.options.center, url)
+  }
+
+  protected format(url: string) {
+    return resolveOption(this.options.format, url)
+  }
+
+
   protected abstract renderTile(params: RequestParameters, abort: AbortController): Promise<GetResourceResponse<ArrayBuffer>>
 
+}
+
+function resolveOption<T>(opt: T | ((url: string) => T), url: string) {
+  if (isFunction(opt)) {
+    return opt(url)
+  } else {
+    return opt
+  }
 }
 
 export type TileProviderRequest<P> = RequestParameters & {params: P, query: URLSearchParams}
@@ -86,10 +127,10 @@ export interface TileProviderOptions {
 
   minzoom?: number | ((url: string) => number)
   maxzoom?: number | ((url: string) => number)
-  bounds?: Bounds | ((url: string) => Bounds)
-  center?: Center | ((url: string) => Center)
+  bounds?:  Bounds | ((url: string) => Bounds)
+  center?:  Center | ((url: string) => Center)
   
-  scale?: string | ((url: string) => string)
+  scale?:  string | ((url: string) => string)
   format?: string | ((url: string) => string)
 }
 
