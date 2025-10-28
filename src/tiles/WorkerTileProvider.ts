@@ -22,6 +22,16 @@ export abstract class WorkerTileProvider<Data = EmptyObject> extends TileProvide
       })
   }
 
+  public dispose() {
+    for (const worker of this.workers) {
+      worker.terminate()
+    }
+    for (const worker of this.additionalWorkers) {
+      worker.terminate()
+    }
+    super.dispose()
+  }
+
   private workers: Worker[]
   private additionalWorkers = new Set<Worker>()
 
