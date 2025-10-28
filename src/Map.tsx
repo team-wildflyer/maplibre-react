@@ -165,10 +165,10 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
   // #endregion
   
   const size = useSize(containerRef)
-  const wrapperStyle = useMemo(() => {
+  const wrapperStyle = useMemo((): CSSProperties => {
     return {
       ...size,
-      visbility: !ready && hideUntilReady ? 'hidden' : undefined,
+      visibility: !ready && hideUntilReady ? 'hidden' : undefined,
     }
   }, [hideUntilReady, ready, size])
 

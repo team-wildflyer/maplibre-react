@@ -168,6 +168,9 @@ export class MapModel extends Disposable {
 
     this._loaded = false
     this._idle = false
+    this._ready = false
+    this._loading = false
+    this.emitLoadingChange()
 
     this.currentBackingLayers.clear()
     this.currentMarkers.clear()
