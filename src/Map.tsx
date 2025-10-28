@@ -1,12 +1,22 @@
 import { FitBoundsOptions, MapOptions } from '@maptiler/sdk'
 import cn from 'classnames'
-import React, { CSSProperties, Ref, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import {
+  CSSProperties,
+  ReactNode,
+  Ref,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useSize } from 'react-measure'
 import { useTimer } from 'react-timer'
 import { forwardRef } from 'react-util'
 import { useMap } from './MapContext'
 import { Viewport } from './Viewport'
 import config from './config'
+import { useMapReady } from './hooks'
 import './styles.css'
 import { FitBoundsOptionsCallback, MapStyleSpecification } from './types'
 
@@ -38,6 +48,17 @@ export interface MapProps {
   labelsVisible?: boolean
 
   /**
+   * Hides the map element (visibility: hidden) until its first `idle` event.
+   */
+  hideUntilReady?: boolean
+
+  /**
+   * If the map is hidden because it's not ready, this element is shown instead. Ignored if `hideUntilReady` is set
+   * to `false.
+   */
+  renderReadyGuard?: () => ReactNode
+
+  /**
    * Any options passed to the map. Note that this is not reactive. These options are set once.
    */
   options?: Omit<MapOptions, 'container' | 'bounds' | 'style' | 'center' | 'zoom'>
@@ -45,7 +66,7 @@ export interface MapProps {
   className?: string
   style?:     CSSProperties
 
-  children?: React.ReactNode
+  children?: ReactNode
 }
 
 export interface MapHandle {
@@ -60,6 +81,8 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
     defaultViewport,
     fitBoundsOptions,
     labelsVisible = true,
+    hideUntilReady = true,
+    renderReadyGuard,
     options = {},
     className,
     style,
@@ -67,6 +90,7 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
   } = props
 
   const map = useMap()
+  const ready = useMapReady()
 
   const containerRef = useRef<HTMLDivElement>(null)
   const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null)
@@ -81,6 +105,7 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
 
   useEffect(() => {
     if (wrapper == null) { return }
+    if (wrapper.clientWidth === 0 || wrapper.clientHeight === 0) { return }
 
     // This prevents a possible "Style not loaded" error when loading the map. This is fully internal,
     // and in some async code, preventing me from catching the error synchronously. I hate to resort
@@ -140,6 +165,12 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
   // #endregion
   
   const size = useSize(containerRef)
+  const wrapperStyle = useMemo(() => {
+    return {
+      ...size,
+      visbility: !ready && hideUntilReady ? 'hidden' : undefined,
+    }
+  }, [hideUntilReady, ready, size])
 
   function render() {
     return (
@@ -147,10 +178,11 @@ export const Map = forwardRef('Map', (props: MapProps, ref: Ref<MapHandle>) => {
         {size.width > 0 && (
           <div
             className='maplibre-react--Map-Wrapper'
-            style={{...size}}
+            style={wrapperStyle}
             ref={setWrapper}
           />
         )}
+        {!ready && hideUntilReady && renderReadyGuard?.()}
         {children}
       </div>
     )

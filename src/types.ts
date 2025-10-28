@@ -1,4 +1,14 @@
 import {
+  DrawCombineEvent,
+  DrawCreateEvent,
+  DrawDeleteEvent,
+  DrawModeChangeEvent,
+  DrawRenderEvent,
+  DrawSelectionChangeEvent,
+  DrawUncombineEvent,
+  DrawUpdateEvent,
+} from '@mapbox/mapbox-gl-draw'
+import {
   CustomLayerInterface,
   FitBoundsOptions,
   LayerSpecification,
@@ -8,7 +18,6 @@ import {
 } from '@maptiler/sdk'
 import { BBox, Geometry } from 'geojson-classes'
 import { DateTime } from 'luxon'
-import { DrawCombineEvent, DrawCreateEvent, DrawDeleteEvent, DrawModeChangeEvent, DrawRenderEvent, DrawSelectionChangeEvent, DrawUncombineEvent, DrawUpdateEvent } from '@mapbox/mapbox-gl-draw'
 
 export type MapStyleSpecification = ReferenceMapStyle | MapStyleVariant | StyleSpecification | string
 
@@ -51,7 +60,7 @@ export enum MapStatus {
   Error
 }
 
-export type FitBoundsOptionsCallback = (reason: FitBoundsReason, from: BBox, to: BBox) => boolean | FitBoundsOptions
+export type FitBoundsOptionsCallback = (reason: FitBoundsReason, from: BBox | undefined, to: BBox) => boolean | FitBoundsOptions
 export enum FitBoundsReason {
   MapResized,
   ViewportReset,

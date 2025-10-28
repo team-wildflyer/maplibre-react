@@ -21,7 +21,7 @@ import {
 } from '@maptiler/sdk'
 import { Point } from 'geojson'
 import { BBox, Geometry } from 'geojson-classes'
-import { isFunction } from 'lodash'
+import { clamp, isFunction } from 'lodash'
 import Timer from 'react-timer'
 import { Disposable } from 'react-util'
 import { bindMethods, objectEquals, objectKeys } from 'ytil'
@@ -99,10 +99,12 @@ export class MapModel extends Disposable {
     options: MapOptions = {},
   ) {
     if (element === this._element && this._map != null) { return }
+    if (element.clientWidth === 0 || element.clientHeight === 0) { return }
     if (this._map != null || this._element != null) {
       this.deinit()
     }
 
+    this._element = element
     this.queryLoading()
 
     this._mapStyle = initialStyle
@@ -110,8 +112,7 @@ export class MapModel extends Disposable {
     if (initialViewport != null) {
       this._viewport = Viewport.from(initialViewport)
     }
-
-    this._element = element
+    
     this._map = new maptiler_Map({
       container: element,
       style:     this._mapStyle,
@@ -195,6 +196,16 @@ export class MapModel extends Disposable {
     this._loaded = true
     this.queryLoading()
 
+    const bounds = this.viewport.bounds(this.size)
+    const bbox = this.viewport.bbox(this.size)
+    const fitBoundsOptions = this.getFitBoundsOptions(FitBoundsReason.ViewportReset, undefined, bbox)
+    if (this._map != null && typeof fitBoundsOptions !== 'boolean') {
+      this._map.fitBounds(bounds, {
+        ...fitBoundsOptions,
+        duration: 0,
+      })
+    }
+
     this.deriveUnmanagedLayerIDs()
     this.deriveUnmanagedSourceIDs()
     this.syncFeatureStates()
@@ -212,6 +223,8 @@ export class MapModel extends Disposable {
     this._idle = true
     this.operationQueue.flush()
     this.queryLoading()
+
+    this.emitReady()
   }
 
   private onSourceData() {
@@ -228,11 +241,15 @@ export class MapModel extends Disposable {
 
   // #endregion
 
-  // #region Loading
+  // #region Status
+
+  private _ready: boolean = false
+  public get ready() { return this._ready }
 
   private _loading: boolean = false
   public get loading() { return this._loading }
 
+  private readyListeners = new Set<() => void>()
   private loadingChangeListeners = new Set<(loading: boolean) => void>()
 
   private queryLoading() {
@@ -252,7 +269,21 @@ export class MapModel extends Disposable {
     return false
   }
 
-  public addLoadingListener(listener: (loading: boolean) => void) {
+  public addReadyListener(listener: () => void) {
+    this.readyListeners.add(listener)
+    if (this.ready) {
+      listener()
+    }
+  }
+
+  private emitReady() {
+    this._ready = true
+    for (const listener of this.readyListeners) {
+      listener()
+    }
+  }
+
+  public addLoadingChangeListener(listener: (loading: boolean) => void) {
     this.loadingChangeListeners.add(listener)
     listener(this.loading)
 
@@ -306,7 +337,7 @@ export class MapModel extends Disposable {
     this._fitBoundsOptionsCallback = callback
   }
 
-  private getFitBoundsOptions(reason: FitBoundsReason, from: BBox, to: BBox): boolean | FitBoundsOptions {
+  private getFitBoundsOptions(reason: FitBoundsReason, from: BBox | undefined, to: BBox): boolean | FitBoundsOptions {
     if (this._nextFitBoundsOptions != null) {
       const options = this._nextFitBoundsOptions
       this._nextFitBoundsOptions = undefined
@@ -1241,10 +1272,20 @@ interface FeatureStateDirective {
 // #endregion
 
 function lngLatBoundsToBBox(bounds: ReturnType<maptiler_Map['getBounds']>): BBox {
+  const clampLon = (lon: number) => {
+    while (lon < -180) { lon += 180 }
+    while (lon > 180) { lon -= 180 }
+    return lon
+  }
+  
+  const clampLat = (lat: number) => {
+    return clamp(lat, -90, 90)
+  }
+
   return new BBox([
-    bounds.getWest(),
-    bounds.getSouth(),
-    bounds.getEast(),
-    bounds.getNorth(),
+    clampLon(bounds.getWest()),
+    clampLat(bounds.getSouth()),
+    clampLon(bounds.getEast()),
+    clampLat(bounds.getNorth()),
   ])
 }
