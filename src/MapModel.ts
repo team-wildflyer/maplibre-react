@@ -264,8 +264,10 @@ export class MapModel extends Disposable {
     if (this._map == null) { return true }
     if (!this._map.areTilesLoaded()) { return true }
 
-    const sources = this._map.getStyle().sources
-    for (const id in sources) {
+    const style = this._map.getStyle()
+    if (style == null || style.sources == null) { return true }
+
+    for (const id in style.sources) {
       if (!this._map.isSourceLoaded(id)) { return true }
     }
 
