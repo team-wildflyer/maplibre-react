@@ -25,7 +25,7 @@ export const TileLayerSymbol = memo('TileLayerSymbol', (props: TileLayerSymbolPr
   const group = useLayerGroup()
 
   const {
-    addTileLayerBackingLayer: ensureBackingLayer, 
+    registerTileBackingLayer, 
     updateBackingLayerPaint, 
     updateBackingLayerLayout, 
     addTileBackingLayerClickListener,
@@ -58,10 +58,10 @@ export const TileLayerSymbol = memo('TileLayerSymbol', (props: TileLayerSymbolPr
   }, [id, layer.name, source, sourceLayer, spec])
 
   useEffect(() => {
-    return ensureBackingLayer(backingLayer, {
+    return registerTileBackingLayer(backingLayer, {
       group: group?.name,
     })
-  }, [backingLayer, ensureBackingLayer, group?.name])
+  })
 
   useEffect(() => {
     if (prevLayout === undefined) { return }

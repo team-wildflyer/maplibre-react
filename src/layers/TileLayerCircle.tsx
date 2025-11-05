@@ -25,7 +25,7 @@ export const TileLayerCircle = memo('TileLayerCircle', (props: TileLayerCirclePr
   const group = useLayerGroup()
 
   const {
-    addTileLayerBackingLayer: ensureBackingLayer, 
+    registerTileBackingLayer,
     updateBackingLayerPaint, 
     updateBackingLayerLayout, 
     addTileBackingLayerClickListener,
@@ -58,10 +58,10 @@ export const TileLayerCircle = memo('TileLayerCircle', (props: TileLayerCirclePr
   }, [id, layer.name, source, sourceLayer, spec])
 
   useEffect(() => {
-    return ensureBackingLayer(backingLayer, {
+    return registerTileBackingLayer(backingLayer, {
       group: group?.name,
     })
-  }, [backingLayer, ensureBackingLayer, group?.name])
+  })
 
   useEffect(() => {
     if (prevLayout === undefined) { return }

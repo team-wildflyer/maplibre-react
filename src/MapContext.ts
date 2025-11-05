@@ -1,13 +1,26 @@
 import { createContext, useContext } from 'react'
 import { MapModel } from './MapModel'
 
-export const MapContext = createContext<MapModel | null>(null)
+export interface MapContext {
+  model: MapModel | null
+  epoch: number
+}
+
+export const MapContext = createContext<MapContext>({
+  model: null,
+  epoch: 0,
+})
 
 export function useMap() {
-  const context = useContext(MapContext)
-  if (context == null) {
+  const {model} = useContext(MapContext)
+  if (model == null) {
     throw new Error('useMap must be used within a MapContainer')
   }
 
-  return context
+  return model
+}
+
+export function useMapEpoch() {
+  const {epoch} = useContext(MapContext)
+  return epoch
 }

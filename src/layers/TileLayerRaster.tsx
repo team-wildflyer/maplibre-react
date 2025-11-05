@@ -1,10 +1,10 @@
 import { RasterLayerSpecification } from '@maptiler/sdk'
 import { kebabCase, mapKeys } from 'lodash'
-import { useEffect, useMemo } from 'react'
+import { useLayoutEffect, useMemo } from 'react'
 import { memo } from 'react-util'
 import { useWithStableDeps } from 'react-util/hooks'
 import { CamelizeKeys, omitUndefined, sparse } from 'ytil'
-import { useMap } from '../MapContext'
+import { useMap, useMapEpoch } from '../MapContext'
 import { useLayerGroup } from './LayerGroupContext'
 import { useTileLayer } from './TileLayerContext'
 import { TileLayerCommonProps } from './types'
@@ -29,7 +29,10 @@ export const TileLayerRaster = memo('TileLayerRaster', (props: TileLayerRasterPr
   const layer = useTileLayer()
   const group = useLayerGroup()
 
-  const map = useMap()
+  const {
+    registerTileBackingLayer,
+  } = useMap()
+  const epoch = useMapEpoch()
 
   // Create an ID based on the sourceLayer 
   const id = sparse([layer.name, props.sourceLayer]).join('-')
@@ -52,11 +55,12 @@ export const TileLayerRaster = memo('TileLayerRaster', (props: TileLayerRasterPr
     })
   }, [id, layer.name, source, sourceLayer, spec])
 
-  useEffect(() => {
-    return map.addTileLayerBackingLayer(backingLayer, {
+  useLayoutEffect(() => {
+    console.log(id, epoch)
+    return registerTileBackingLayer(backingLayer, {
       group: group?.name,
     })
-  }, [backingLayer, group?.name, map])
+  }, [backingLayer, epoch, group?.name, id, registerTileBackingLayer])
 
   return null
 

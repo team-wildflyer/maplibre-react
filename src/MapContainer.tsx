@@ -1,4 +1,4 @@
-import React, { ReactNode, useMemo } from 'react'
+import { ReactNode, useLayoutEffect, useMemo, useState } from 'react'
 import { memo } from 'react-util'
 import { useDisposable } from 'react-util/hooks'
 import { MapContext } from './MapContext'
@@ -10,13 +10,24 @@ export interface MapContainerProps {
 
 export const MapContainer = memo('MapContainer', (props: MapContainerProps) => {
 
-  const map = useDisposable(useMemo(
+  const model = useDisposable(useMemo(
     () => new MapModel(),
     [],
   ))
+
+  const [epoch, setEpoch] = useState(0)
+
+  const context = useMemo(() => ({
+    model,
+    epoch,
+  }), [epoch, model])
+
+  useLayoutEffect(() => {
+    setEpoch(prev => prev + 1)
+  }, [])
   
   return (
-    <MapContext.Provider value={map} {...props}/>
+    <MapContext.Provider value={context} {...props}/>
   )
 
 })

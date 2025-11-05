@@ -526,8 +526,12 @@ export class MapModel extends Disposable {
 
   private currentBackingLayers = new Map<string, BackingLayer>()
 
-  public addTileLayerBackingLayer(layer: BackingLayer, options: BackingLayerOptions = {}) {
-    if (this._tileLayerBackingLayers.some(it => it[0].id === layer.id)) { return }
+  public registerTileBackingLayer(layer: BackingLayer, options: BackingLayerOptions = {}) {
+    // The TileLayerXXX components call this function on each render. To ensure that they are always in the order
+    // of being rendered, ensure that the backing layer is always last in the list.
+
+    // if (this._tileLayerBackingLayers.some(it => it[0].id === layer.id)) { return }
+    this._tileLayerBackingLayers = this._tileLayerBackingLayers.filter(it => it[0].id !== layer.id)
 
     this._tileLayerBackingLayers.push([layer, options])
     this.syncBackingLayersSoon()

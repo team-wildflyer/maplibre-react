@@ -23,7 +23,7 @@ export const TileLayerFill = memo('TileLayerFill', (props: TileLayerFillProps) =
   const layer = useTileLayer()
   const group = useLayerGroup()
 
-  const {addTileLayerBackingLayer: ensureBackingLayer, updateBackingLayerPaint, addTileBackingLayerClickListener} = useMap()
+  const {registerTileBackingLayer, updateBackingLayerPaint, addTileBackingLayerClickListener} = useMap()
 
   const id = `${sparse([layer.name, props.sourceLayer]).join('-')}:fill`
   const initialPaintRef = useRef(paint)
@@ -47,10 +47,10 @@ export const TileLayerFill = memo('TileLayerFill', (props: TileLayerFillProps) =
   }, [id, layer.name, source, sourceLayer, spec])
 
   useEffect(() => {
-    return ensureBackingLayer(backingLayer, {
+    return registerTileBackingLayer(backingLayer, {
       group: group?.name,
     })
-  }, [backingLayer, ensureBackingLayer, group?.name])
+  })
 
   useEffect(() => {
     if (prevPaint === undefined) { return }

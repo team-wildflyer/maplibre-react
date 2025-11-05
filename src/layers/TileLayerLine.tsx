@@ -1,9 +1,9 @@
 import { LineLayerSpecification } from '@maptiler/sdk'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { memo } from 'react-util'
 import { usePrevious, useWithStableDeps } from 'react-util/hooks'
 import { sparse } from 'ytil'
-import { useMap } from '../MapContext'
+import { useMap, useMapEpoch } from '../MapContext'
 import { useLayerGroup } from './LayerGroupContext'
 import { useTileLayer } from './TileLayerContext'
 import { TileLayerCommonProps } from './types'
@@ -22,8 +22,9 @@ export const TileLayerLine = memo('TileLayerLine', (props: TileLayerLineProps) =
 
   const layer = useTileLayer()
   const group = useLayerGroup()
-
-  const {addTileLayerBackingLayer: ensureBackingLayer, updateBackingLayerPaint, addTileBackingLayerClickListener} = useMap()
+  
+  const {registerTileBackingLayer, updateBackingLayerPaint, addTileBackingLayerClickListener} = useMap()
+  const epoch = useMapEpoch()
 
   const id = `${sparse([layer.name, props.sourceLayer]).join('-')}:line`
   const initialPaintRef = useRef(paint)
@@ -46,11 +47,11 @@ export const TileLayerLine = memo('TileLayerLine', (props: TileLayerLineProps) =
     }
   }, [id, layer.name, source, sourceLayer, spec])
 
-  useEffect(() => {
-    return ensureBackingLayer(backingLayer, {
+  useLayoutEffect(() => {
+    return registerTileBackingLayer(backingLayer, {
       group: group?.name,
     })
-  }, [backingLayer, ensureBackingLayer, group?.name])
+  }, [backingLayer, group?.name, registerTileBackingLayer, epoch, id])
 
   useEffect(() => {
     if (prevPaint === undefined) { return }
@@ -59,6 +60,6 @@ export const TileLayerLine = memo('TileLayerLine', (props: TileLayerLineProps) =
     updateBackingLayerPaint(id, paint)
   }, [id, paint, prevPaint, updateBackingLayerPaint])
 
-  return null
+  return null 
 
 })
